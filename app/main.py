@@ -1,0 +1,54 @@
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+
+from app.config import ALLOWED_ORIGINS
+
+from app.routers.auth import router as auth_router
+from app.routers.course import router as course_router
+from app.routers.chapter import router as chapter_router
+from app.routers.access import router as access_router
+from app.routers.progress import router as progress_router
+from app.routers.learning import router as learning_router
+from app.routers.admin import router as admin_router
+from app.routers.dashboard import router as dashboard_router
+from app.routers.course_builder import router as course_builder_router
+
+
+app = FastAPI(
+    title="Learning System",
+    version="1.0.0"
+)
+
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=ALLOWED_ORIGINS,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"]
+)
+
+
+app.include_router(auth_router)
+app.include_router(course_router)
+app.include_router(chapter_router)
+app.include_router(access_router)
+app.include_router(progress_router)
+app.include_router(learning_router)
+app.include_router(admin_router)
+app.include_router(dashboard_router)
+app.include_router(course_builder_router)
+
+
+@app.get("/")
+def home():
+    return {
+        "message": "Learning System API"
+    }
+
+
+@app.get("/health")
+def health():
+    return {
+        "status": "running"
+    }
