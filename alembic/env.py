@@ -1,5 +1,7 @@
 from logging.config import fileConfig
+import os
 
+from dotenv import load_dotenv
 from sqlalchemy import engine_from_config
 from sqlalchemy import pool
 
@@ -10,9 +12,23 @@ from app.database import Base
 from app.models.user import User
 from app.models.course import Course
 
+# Loads variables from a local .env file if one exists. On a host like
+# Render, there is no .env file, but the real environment variable is
+# already set directly, so this line is a no-op there — harmless either way.
+load_dotenv()
+
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
 config = context.config
+
+# If a DATABASE_URL environment variable is set (locally via .env, or
+# directly on a host like Render), it takes priority over whatever is
+# hardcoded in alembic.ini. This is what lets the exact same project
+# migrate a different database in each environment without hand-editing
+# alembic.ini every time you deploy somewhere new.
+database_url = os.getenv("DATABASE_URL")
+if database_url:
+    config.set_main_option("sqlalchemy.url", database_url)
 
 # Interpret the config file for Python logging.
 # This line sets up loggers basically.
