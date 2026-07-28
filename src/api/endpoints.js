@@ -112,6 +112,19 @@ export const progressApi = {
   mine: () => api.get("/progress/me"),
 };
 
+/* ------------------------------------------------------- organisation --- */
+
+export const organisationApi = {
+  getDomain: () => api.get("/admin/organisation/domain"),
+
+  setDomain: (customDomain) =>
+    api.post("/admin/organisation/domain", { custom_domain: customDomain }),
+
+  verifyDomain: () => api.post("/admin/organisation/domain/verify"),
+
+  removeDomain: () => api.delete("/admin/organisation/domain"),
+};
+
 /* ----------------------------------------------------- student summary --- */
 
 export const meApi = {
