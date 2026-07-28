@@ -250,29 +250,6 @@ function StudentDetail({ record, onClose, onChanged }) {
                     <span className="drawer-course-pct">{Math.round(course.percentage)}%</span>
                   </div>
                   <ProgressBar value={course.percentage} wide />
-
-                  {course.chapters.map((chapter) => (
-                    <div className="drawer-chapter" key={chapter.id}>
-                      <div className="drawer-chapter-title">
-                        {chapter.chapter_number}. {chapter.title}
-                      </div>
-                      <ul className="chapter-list">
-                        {chapter.subchapters.map((sub) => {
-                          const state = sub.is_completed
-                            ? "done"
-                            : sub.is_locked
-                            ? "locked"
-                            : "current";
-                          return (
-                            <li key={sub.id} className={`chapter-item chapter-${state}`}>
-                              <span className="chapter-dot" />
-                              <span className="chapter-item-title">{sub.title}</span>
-                            </li>
-                          );
-                        })}
-                      </ul>
-                    </div>
-                  ))}
                 </div>
               ))
             )}
