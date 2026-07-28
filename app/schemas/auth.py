@@ -20,7 +20,7 @@ class TokenResponse(BaseModel):
 class UserResponse(BaseModel):
     id: int
     name: str
-    username: str
+    username: str | None = None
     email: EmailStr
     role: str
     department: Department | None = None
