@@ -1,4 +1,4 @@
-# Deploying Arnav Learning System
+# Deploying Arnav LMS
 
 This walks through putting both halves of the system on the real internet, so
 people other than you can use it. It assumes you've already got everything

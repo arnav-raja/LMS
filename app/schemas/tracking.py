@@ -9,7 +9,8 @@ from app.constants import Seniority
 class StudentSummary(BaseModel):
     id: int
     name: str
-    email: str
+    username: str | None
+    email: str | None
     department: Department | None
     seniority: Seniority | None
 
@@ -43,7 +44,7 @@ class CourseProgressDetail(BaseModel):
 class StudentProgressResponse(BaseModel):
     id: int
     name: str
-    email: str
+    email: str | None
     department: Department | None
     seniority: Seniority | None
     courses: list[CourseProgressDetail]
@@ -52,7 +53,7 @@ class StudentProgressResponse(BaseModel):
 class CourseRosterEntry(BaseModel):
     id: int
     name: str
-    email: str
+    email: str | None
     department: Department | None
     seniority: Seniority | None
     completed_subchapters: int

@@ -120,7 +120,7 @@ def create_user(
     department: str | None,
     seniority: str | None
 ):
-    if db.query(User).filter(User.email == email).first():
+    if email and db.query(User).filter(User.email == email).first():
         raise ValueError("Email already registered")
 
     if db.query(User).filter(User.username == username).first():

@@ -43,7 +43,7 @@ class User(Base):
     email = Column(
         String(200),
         unique=True,
-        nullable=False,
+        nullable=True,
         index=True
     )
 

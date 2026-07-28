@@ -11,5 +11,5 @@ class DashboardCourse(BaseModel):
 class DashboardResponse(BaseModel):
     id: int
     name: str
-    email: str
+    email: str | None
     courses: list[DashboardCourse]

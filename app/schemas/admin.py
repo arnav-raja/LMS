@@ -32,7 +32,7 @@ class UserListItem(BaseModel):
     id: int
     name: str
     username: str | None = None
-    email: EmailStr
+    email: EmailStr | None = None
     role: str
     department: Department | None = None
     seniority: Seniority | None = None
@@ -44,7 +44,7 @@ class UserListItem(BaseModel):
 class CreateUserRequest(BaseModel):
     name: str
     username: str
-    email: EmailStr
+    email: EmailStr | None = None
     password: str
     role: str = "student"
     department: Department | None = None

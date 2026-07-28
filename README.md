@@ -1,4 +1,4 @@
-# Learning System
+# Arnav LMS
 
 A Web-Based Learning Management System built using FastAPI and PostgreSQL.
 

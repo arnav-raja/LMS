@@ -16,7 +16,7 @@ from app.routers.organisation import router as organisation_router
 
 
 app = FastAPI(
-    title="Learning System",
+    title="Arnav LMS",
     version="1.0.0"
 )
 
@@ -67,7 +67,7 @@ def allow_verified_custom_domain():
 @app.get("/")
 def home():
     return {
-        "message": "Learning System API"
+        "message": "Arnav LMS API"
     }
 
 
