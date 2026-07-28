@@ -92,7 +92,7 @@ export default function LoginPage() {
         {mode === "signin" && (
           <>
             <label className="field-label" htmlFor="identifier">
-              Username or email
+              Username or Email
             </label>
             <input
               id="identifier"
