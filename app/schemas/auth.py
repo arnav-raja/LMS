@@ -7,6 +7,7 @@ from app.constants import Seniority
 
 class RegisterRequest(BaseModel):
     name: str
+    username: str
     email: EmailStr
     password: str
 
@@ -19,6 +20,7 @@ class TokenResponse(BaseModel):
 class UserResponse(BaseModel):
     id: int
     name: str
+    username: str
     email: EmailStr
     role: str
     department: Department | None = None

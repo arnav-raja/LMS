@@ -11,22 +11,35 @@ from app.services.jwt_service import create_access_token
 def register_user(
     db: Session,
     name: str,
+    username: str,
     email: str,
     password: str
 ):
-    existing_user = (
+    existing_email = (
         db.query(User)
         .filter(User.email == email)
         .first()
     )
 
-    if existing_user:
+    if existing_email:
         raise ValueError(
             "Email already registered"
         )
 
+    existing_username = (
+        db.query(User)
+        .filter(User.username == username)
+        .first()
+    )
+
+    if existing_username:
+        raise ValueError(
+            "Username already taken"
+        )
+
     user = User(
         name=name,
+        username=username,
         email=email,
         password_hash=hash_password(password),
         role="student"
@@ -41,12 +54,17 @@ def register_user(
 
 def login_user(
     db: Session,
-    email: str,
+    identifier: str,
     password: str
 ):
+    """`identifier` may be either the user's username or their email
+    address, so a person can sign in with whichever they remember."""
     user = (
         db.query(User)
-        .filter(User.email == email)
+        .filter(
+            (User.username == identifier)
+            | (User.email == identifier)
+        )
         .first()
     )
 

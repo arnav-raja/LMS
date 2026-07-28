@@ -26,6 +26,7 @@ def register(
         user = register_user(
             db=db,
             name=request.name,
+            username=request.username,
             email=request.email,
             password=request.password
         )
@@ -42,9 +43,11 @@ def login(
     form_data: OAuth2PasswordRequestForm = Depends(),
     db: Session = Depends(get_db)
 ):
+    # OAuth2PasswordRequestForm calls this field "username", but we accept
+    # either the account's username or its email address in it.
     token = login_user(
         db=db,
-        email=form_data.username,
+        identifier=form_data.username,
         password=form_data.password
     )
 
