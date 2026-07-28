@@ -12,6 +12,7 @@ from app.routers.learning import router as learning_router
 from app.routers.admin import router as admin_router
 from app.routers.dashboard import router as dashboard_router
 from app.routers.course_builder import router as course_builder_router
+from app.routers.organisation import router as organisation_router
 
 
 app = FastAPI(
@@ -38,6 +39,29 @@ app.include_router(learning_router)
 app.include_router(admin_router)
 app.include_router(dashboard_router)
 app.include_router(course_builder_router)
+app.include_router(organisation_router)
+
+
+@app.on_event("startup")
+def allow_verified_custom_domain():
+    """If an organisation has a verified custom domain, the frontend
+    served from it also needs to be allowed to call this API."""
+    from app.database import SessionLocal
+    from app.services.organisation_service import get_or_create_organisation
+
+    db = SessionLocal()
+
+    try:
+        organisation = get_or_create_organisation(db)
+
+        if organisation.domain_verified and organisation.custom_domain:
+            for scheme in ("https://", "http://"):
+                origin = f"{scheme}{organisation.custom_domain}"
+
+                if origin not in ALLOWED_ORIGINS:
+                    ALLOWED_ORIGINS.append(origin)
+    finally:
+        db.close()
 
 
 @app.get("/")

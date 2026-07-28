@@ -6,21 +6,15 @@ from app.constants import Seniority
 
 
 class DashboardResponse(BaseModel):
-    students: int
-    courses: int
-    access_rules: int
-    completed_subchapters: int
+    total_students: int
+    published_courses: int
+    draft_courses: int
+    students_without_access: int
+    average_completion_percentage: float
+    completions_last_7_days: int
 
 
-class StudentCreateRequest(BaseModel):
-    name: str
-    email: EmailStr
-    password: str
-    department: Department | None = None
-    seniority: Seniority | None = None
-
-
-class StudentProfileUpdate(BaseModel):
+class UserAccessProfileUpdate(BaseModel):
     department: Department
     seniority: Seniority
 
@@ -32,3 +26,36 @@ class DepartmentOption(BaseModel):
 
 class RoleOption(BaseModel):
     value: Seniority
+
+
+class UserListItem(BaseModel):
+    id: int
+    name: str
+    username: str | None = None
+    email: EmailStr
+    role: str
+    department: Department | None = None
+    seniority: Seniority | None = None
+
+    class Config:
+        from_attributes = True
+
+
+class CreateUserRequest(BaseModel):
+    name: str
+    username: str
+    email: EmailStr
+    password: str
+    role: str = "student"
+    department: Department | None = None
+    seniority: Seniority | None = None
+
+
+class UpdateUserRequest(BaseModel):
+    name: str | None = None
+    username: str | None = None
+    email: EmailStr | None = None
+    password: str | None = None
+    role: str | None = None
+    department: Department | None = None
+    seniority: Seniority | None = None

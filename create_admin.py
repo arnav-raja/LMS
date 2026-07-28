@@ -56,6 +56,12 @@ def main():
             print("A name is required.")
             sys.exit(1)
 
+        username = input("Username: ").strip()
+
+        if not username:
+            print("A username is required.")
+            sys.exit(1)
+
         password = getpass.getpass("Password: ")
         confirm_password = getpass.getpass("Confirm password: ")
 
@@ -69,6 +75,7 @@ def main():
 
         user = User(
             name=name,
+            username=username,
             email=email,
             password_hash=hash_password(password),
             role="admin",

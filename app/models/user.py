@@ -33,6 +33,13 @@ class User(Base):
         nullable=False
     )
 
+    username = Column(
+        String(50),
+        unique=True,
+        nullable=False,
+        index=True
+    )
+
     email = Column(
         String(200),
         unique=True,
