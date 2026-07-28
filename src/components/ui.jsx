@@ -30,27 +30,12 @@ export function StatusBadge({ status }) {
   return <span className={`badge badge-${status}`}>{status}</span>;
 }
 
-export function StatCard({ label, value, footnote, onClick }) {
-  const Tag = onClick ? "button" : "div";
+export function StatCard({ label, value, footnote }) {
   return (
-    <Tag
-      type={onClick ? "button" : undefined}
-      className={`stat-card ${onClick ? "stat-card-link" : ""}`}
-      onClick={onClick}
-    >
+    <div className="stat-card">
       <div className="stat-value">{value}</div>
       <div className="stat-label">{label}</div>
       {footnote && <div className="stat-footnote">{footnote}</div>}
-    </Tag>
-  );
-}
-
-/** A small computed metric shown inside a course or student detail panel. */
-export function MetricCard({ label, value }) {
-  return (
-    <div className="detail-metric">
-      <div className="detail-metric-value">{value}</div>
-      <div className="detail-metric-label">{label}</div>
     </div>
   );
 }

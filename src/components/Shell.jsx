@@ -8,6 +8,7 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   LogOut,
+  UserCog,
 } from "lucide-react";
 import { useAuth } from "../auth/AuthContext";
 import { departmentLabel } from "../api/endpoints";
@@ -18,6 +19,7 @@ const ADMIN_LINKS = [
   { to: "/admin", label: "Dashboard", end: true, icon: LayoutDashboard },
   { to: "/admin/students", label: "Students", icon: Users },
   { to: "/admin/courses", label: "Courses", icon: BookOpen },
+  { to: "/admin/users", label: "Users", icon: UserCog },
 ];
 
 const STUDENT_LINKS = [
