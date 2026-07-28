@@ -137,7 +137,14 @@ def remove_user(
             detail="You cannot delete your own account"
         )
 
-    deleted = delete_user(db, user_id)
+    try:
+        deleted = delete_user(db, user_id)
+    except Exception:
+        db.rollback()
+        raise HTTPException(
+            status_code=400,
+            detail="Could not delete this user — they may still have related records."
+        )
 
     if not deleted:
         raise HTTPException(status_code=404, detail="User not found")

@@ -199,6 +199,10 @@ def delete_user(
     if user is None:
         return False
 
+    # Remove their progress history first — the database won't let us
+    # delete the account itself while rows still point at it.
+    db.query(Progress).filter(Progress.user_id == user_id).delete()
+
     db.delete(user)
     db.commit()
 
