@@ -9,19 +9,11 @@ import { api, request } from "./client";
 /* ---------------------------------------------------------------- auth --- */
 
 export const authApi = {
-  // OAuth2PasswordRequestForm's field is always called `username`, but the
-  // backend accepts either an account's username or its email in it.
-  login: (identifier, password) =>
+  // OAuth2PasswordRequestForm: the email goes in the `username` field.
+  login: (email, password) =>
     request("/auth/login", {
       method: "POST",
-      form: { username: identifier, password },
-      auth: false,
-    }),
-
-  register: (name, username, email, password) =>
-    request("/auth/register", {
-      method: "POST",
-      body: { name, username, email, password },
+      form: { username: email, password },
       auth: false,
     }),
 
@@ -78,20 +70,18 @@ export const adminApi = {
 
   students: () => api.get("/admin/students"),
 
+  // Students feature owns full lifecycle: add, edit access profile, remove.
+  // There is no separate sign-up page or Users feature — this replaces both.
+  createStudent: (student) => api.post("/admin/students", student),
+
+  setAccessProfile: (userId, department, seniority) =>
+    api.patch(`/admin/students/${userId}`, { department, seniority }),
+
+  deleteStudent: (userId) => api.delete(`/admin/students/${userId}`),
+
   studentProgress: (userId) => api.get(`/admin/students/${userId}/progress`),
 
   courseRoster: (courseId) => api.get(`/admin/courses/${courseId}/students`),
-
-  setAccessProfile: (userId, department, seniority) =>
-    api.patch(`/admin/users/${userId}/access-profile`, { department, seniority }),
-
-  users: () => api.get("/admin/users"),
-
-  createUser: (user) => api.post("/admin/users", user),
-
-  updateUser: (userId, changes) => api.patch(`/admin/users/${userId}`, changes),
-
-  deleteUser: (userId) => api.delete(`/admin/users/${userId}`),
 };
 
 /* ------------------------------------------------------------ learning --- */
@@ -110,19 +100,6 @@ export const progressApi = {
   complete: (subchapterId) => api.post("/progress/complete", { subchapter_id: subchapterId }),
 
   mine: () => api.get("/progress/me"),
-};
-
-/* ------------------------------------------------------- organisation --- */
-
-export const organisationApi = {
-  getDomain: () => api.get("/admin/organisation/domain"),
-
-  setDomain: (customDomain) =>
-    api.post("/admin/organisation/domain", { custom_domain: customDomain }),
-
-  verifyDomain: () => api.post("/admin/organisation/domain/verify"),
-
-  removeDomain: () => api.delete("/admin/organisation/domain"),
 };
 
 /* ----------------------------------------------------- student summary --- */

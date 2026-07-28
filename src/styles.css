@@ -113,6 +113,13 @@ a {
   padding: 4px;
 }
 
+.login-help {
+  margin-top: 16px;
+  color: var(--stone);
+  font-size: 12.5px;
+  text-align: center;
+}
+
 /* ------------------------------------------------------------- forms --- */
 
 .field-label {
@@ -525,6 +532,20 @@ a {
   padding: 20px 18px;
 }
 
+.stat-card-link {
+  cursor: pointer;
+  text-align: left;
+  width: 100%;
+  font: inherit;
+  color: inherit;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.stat-card-link:hover {
+  background: var(--ivory);
+  border-color: var(--gold);
+}
+
 .stat-value {
   font-family: var(--font-display);
   font-size: 30px;
@@ -711,6 +732,50 @@ a {
   padding: 20px 20px 18px;
   display: flex;
   flex-direction: column;
+}
+
+.course-card-clickable {
+  cursor: pointer;
+  transition: border-color 0.15s ease;
+}
+
+.course-card-clickable:hover {
+  border-color: var(--gold);
+}
+
+.detail-metrics {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+  margin: 16px 0;
+}
+
+.detail-metric {
+  background: var(--ivory);
+  border: 1px solid var(--parchment);
+  padding: 12px 14px;
+}
+
+.detail-metric-value {
+  font-family: var(--font-display);
+  font-size: 20px;
+  line-height: 1;
+}
+
+.detail-metric-label {
+  font-family: var(--font-ui);
+  font-size: 10.5px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--stone);
+  margin-top: 4px;
+}
+
+.detail-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 8px;
 }
 
 .course-card-top {
