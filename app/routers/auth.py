@@ -3,10 +3,8 @@ from fastapi import Depends
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 from app.database import get_db
-from app.schemas.auth import RegisterRequest
 from app.schemas.auth import TokenResponse
 from app.schemas.auth import UserResponse
-from app.services.auth_service import register_user
 from app.services.auth_service import login_user
 from app.dependencies.auth import get_current_user
 from app.models.user import User
@@ -17,37 +15,18 @@ router = APIRouter(
     tags=["Authentication"]
 )
 
-@router.post("/register", response_model=UserResponse)
-def register(
-    request: RegisterRequest,
-    db: Session = Depends(get_db)
-):
-    try:
-        user = register_user(
-            db=db,
-            name=request.name,
-            username=request.username,
-            email=request.email,
-            password=request.password
-        )
-    except ValueError as error:
-        raise HTTPException(
-            status_code=400,
-            detail=str(error)
-        )
-
-    return user
+# There is deliberately no self-service registration route. Student and
+# admin accounts are created by an administrator from the Students page
+# (see app/routers/admin.py), never by the person signing up themselves.
 
 @router.post("/login", response_model=TokenResponse)
 def login(
     form_data: OAuth2PasswordRequestForm = Depends(),
     db: Session = Depends(get_db)
 ):
-    # OAuth2PasswordRequestForm calls this field "username", but we accept
-    # either the account's username or its email address in it.
     token = login_user(
         db=db,
-        identifier=form_data.username,
+        email=form_data.username,
         password=form_data.password
     )
 
