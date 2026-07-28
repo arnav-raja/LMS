@@ -40,7 +40,18 @@ export default function AdminDashboard() {
       />
 
       <div className="stat-grid">
-        <StatCard label="Students" value={stats.data.total_students} />
+        <StatCard
+          label="Students"
+          value={stats.data.total_students}
+          footnote="View students →"
+          onClick={() => navigate("/admin/students")}
+        />
+        <StatCard
+          label="Courses"
+          value={list.length}
+          footnote={`${published.length} published — view courses →`}
+          onClick={() => navigate("/admin/courses")}
+        />
         <StatCard
           label="Students without access"
           value={stats.data.students_without_access}

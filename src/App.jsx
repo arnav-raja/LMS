@@ -8,7 +8,6 @@ import AdminDashboard from "./admin/AdminDashboard";
 import AdminStudents from "./admin/AdminStudents";
 import AdminCourses from "./admin/AdminCourses";
 import AdminCourseRoster from "./admin/AdminCourseRoster";
-import AdminUsers from "./admin/AdminUsers";
 
 import StudentDashboard from "./student/StudentDashboard";
 import StudentCourses from "./student/StudentCourses";
@@ -66,15 +65,6 @@ function Routing() {
             </AdminOnly>
           }
         />
-        <Route
-          path="admin/users"
-          element={
-            <AdminOnly>
-              <AdminUsers />
-            </AdminOnly>
-          }
-        />
-
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
     </Routes>

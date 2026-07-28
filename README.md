@@ -1,6 +1,6 @@
-# Arnav Learning System — Frontend
+# Arnav LMS — Frontend
 
-React frontend for the Learning System API. Covers both the admin portal and the
+React frontend for the Arnav LMS API. Covers both the admin portal and the
 student learning experience, with role-aware routing driven by the `role` field
 returned by `/auth/me`.
 

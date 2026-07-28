@@ -18,13 +18,6 @@ export const authApi = {
       auth: false,
     }),
 
-  register: (name, username, email, password) =>
-    request("/auth/register", {
-      method: "POST",
-      body: { name, username, email, password },
-      auth: false,
-    }),
-
   me: () => api.get("/auth/me"),
 };
 
@@ -81,9 +74,6 @@ export const adminApi = {
   studentProgress: (userId) => api.get(`/admin/students/${userId}/progress`),
 
   courseRoster: (courseId) => api.get(`/admin/courses/${courseId}/students`),
-
-  setAccessProfile: (userId, department, seniority) =>
-    api.patch(`/admin/users/${userId}/access-profile`, { department, seniority }),
 
   users: () => api.get("/admin/users"),
 

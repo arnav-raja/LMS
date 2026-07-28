@@ -4,15 +4,18 @@ import {
   DEPARTMENTS,
   SENIORITIES,
   accessApi,
+  adminApi,
   courseApi,
   courseBuilderApi,
 } from "../api/endpoints";
 import { useAsync } from "../api/useAsync";
 import {
   Button,
+  Drawer,
   EmptyState,
   ErrorPanel,
   Loading,
+  MetricCard,
   Modal,
   PageTitle,
   StatusBadge,
@@ -323,36 +326,128 @@ function AccessEditor({ course, onClose }) {
   );
 }
 
-export default function AdminCourses() {
+/**
+ * Detail panel for a single course. Shows computed metrics up top, then
+ * the actions in a fixed order: Access, Roster, Edit, Delete, Archive.
+ */
+function CourseDetail({ course, onClose, onChanged }) {
   const navigate = useNavigate();
-  const { data, loading, error, reload } = useAsync(() => courseApi.list(), []);
-  const [builder, setBuilder] = useState(null); // { course } or {} for new
-  const [accessCourse, setAccessCourse] = useState(null);
+  const rules = useAsync(() => accessApi.list(course.id), [course.id]);
+  const roster = useAsync(() => adminApi.courseRoster(course.id), [course.id]);
+
+  const [showAccess, setShowAccess] = useState(false);
+  const [showEdit, setShowEdit] = useState(false);
   const [actionError, setActionError] = useState(null);
+  const [busy, setBusy] = useState(false);
 
-  const courses = data || [];
+  const students = roster.data?.students || [];
+  const averagePercentage = students.length
+    ? Math.round(students.reduce((sum, s) => sum + s.percentage, 0) / students.length)
+    : 0;
 
-  const toggleStatus = async (course) => {
+  const goToRoster = () => {
+    onClose();
+    navigate(`/admin/courses/${course.id}/roster`);
+  };
+
+  const toggleStatus = async () => {
+    setBusy(true);
     setActionError(null);
     try {
       if (course.status === "published") await courseApi.archive(course.id);
       else await courseApi.publish(course.id);
-      reload();
+      onClose();
+      onChanged();
     } catch (err) {
       setActionError(err.message);
+      setBusy(false);
     }
   };
 
-  const remove = async (course) => {
+  const remove = async () => {
     if (!window.confirm(`Delete "${course.title}"? This cannot be undone.`)) return;
+    setBusy(true);
     setActionError(null);
     try {
       await courseBuilderApi.remove(course.id);
-      reload();
+      onClose();
+      onChanged();
     } catch (err) {
       setActionError(err.message);
+      setBusy(false);
     }
   };
+
+  return (
+    <>
+      <Drawer
+        eyebrow="Course"
+        title={course.title}
+        meta={<StatusBadge status={course.status} />}
+        onClose={onClose}
+      >
+        <p className="drawer-meta">{course.description}</p>
+
+        <div className="detail-metrics">
+          <MetricCard label="Chapters" value={course.num_chapters} />
+          <MetricCard
+            label="Access rules granted"
+            value={rules.loading ? "—" : rules.data?.length ?? 0}
+          />
+          <MetricCard
+            label="Students reached"
+            value={roster.loading ? "—" : students.length}
+          />
+          <MetricCard
+            label="Average completion"
+            value={roster.loading ? "—" : `${averagePercentage}%`}
+          />
+        </div>
+
+        {actionError && <div className="form-error">{actionError}</div>}
+
+        <div className="detail-actions">
+          <Button variant="ghost" onClick={() => setShowAccess(true)}>
+            Access
+          </Button>
+          <Button variant="ghost" onClick={goToRoster}>
+            Roster
+          </Button>
+          <Button variant="ghost" onClick={() => setShowEdit(true)}>
+            Edit
+          </Button>
+          <Button variant="ghost" onClick={remove} disabled={busy}>
+            Delete
+          </Button>
+          <Button variant="ghost" onClick={toggleStatus} disabled={busy}>
+            {course.status === "published" ? "Archive" : "Publish"}
+          </Button>
+        </div>
+      </Drawer>
+
+      {showAccess && <AccessEditor course={course} onClose={() => setShowAccess(false)} />}
+
+      {showEdit && (
+        <CourseBuilder
+          course={course}
+          onClose={() => setShowEdit(false)}
+          onSaved={() => {
+            setShowEdit(false);
+            onClose();
+            onChanged();
+          }}
+        />
+      )}
+    </>
+  );
+}
+
+export default function AdminCourses() {
+  const { data, loading, error, reload } = useAsync(() => courseApi.list(), []);
+  const [builder, setBuilder] = useState(null); // {} for new course
+  const [selected, setSelected] = useState(null); // the course whose detail is open
+
+  const courses = data || [];
 
   if (loading) return <Loading label="Loading courses" />;
 
@@ -361,12 +456,11 @@ export default function AdminCourses() {
       <PageTitle
         eyebrow="Catalogue"
         title="Courses"
-        lede="Build, publish, and decide who may open each course."
+        lede="Every course on offer. Open one to see access, roster, edit, delete and archive."
         action={<Button onClick={() => setBuilder({})}>New course</Button>}
       />
 
       {error && <ErrorPanel error={error} onRetry={reload} />}
-      {actionError && <div className="form-error">{actionError}</div>}
 
       {!error && courses.length === 0 ? (
         <EmptyState
@@ -377,7 +471,13 @@ export default function AdminCourses() {
       ) : (
         <div className="course-grid">
           {courses.map((course) => (
-            <article className="course-card" key={course.id}>
+            <article
+              className="course-card course-card-clickable"
+              key={course.id}
+              onClick={() => setSelected(course)}
+              role="button"
+              tabIndex={0}
+            >
               <div className="course-card-top">
                 <StatusBadge status={course.status} />
                 <span className="course-card-chapters">
@@ -387,27 +487,6 @@ export default function AdminCourses() {
 
               <h3 className="course-card-title">{course.title}</h3>
               <p className="course-card-desc">{course.description}</p>
-
-              <div className="course-card-actions">
-                <button className="btn-icon" onClick={() => setBuilder({ course })}>
-                  Edit
-                </button>
-                <button className="btn-icon" onClick={() => setAccessCourse(course)}>
-                  Access
-                </button>
-                <button
-                  className="btn-icon"
-                  onClick={() => navigate(`/admin/courses/${course.id}/roster`)}
-                >
-                  Roster
-                </button>
-                <button className="btn-icon" onClick={() => toggleStatus(course)}>
-                  {course.status === "published" ? "Archive" : "Publish"}
-                </button>
-                <button className="btn-icon btn-icon-danger" onClick={() => remove(course)}>
-                  Delete
-                </button>
-              </div>
             </article>
           ))}
         </div>
@@ -424,8 +503,12 @@ export default function AdminCourses() {
         />
       )}
 
-      {accessCourse && (
-        <AccessEditor course={accessCourse} onClose={() => setAccessCourse(null)} />
+      {selected && (
+        <CourseDetail
+          course={selected}
+          onClose={() => setSelected(null)}
+          onChanged={reload}
+        />
       )}
     </>
   );
