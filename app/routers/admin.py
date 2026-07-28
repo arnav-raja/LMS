@@ -16,6 +16,9 @@ from app.schemas.admin import DashboardResponse
 from app.schemas.admin import DepartmentOption
 from app.schemas.admin import RoleOption
 from app.schemas.admin import UserAccessProfileUpdate
+from app.schemas.admin import UserListItem
+from app.schemas.admin import CreateUserRequest
+from app.schemas.admin import UpdateUserRequest
 
 from app.schemas.auth import UserResponse
 
@@ -25,6 +28,10 @@ from app.schemas.tracking import StudentSummary
 
 from app.services.admin_service import get_dashboard
 from app.services.admin_service import update_user_access_profile
+from app.services.admin_service import list_all_users
+from app.services.admin_service import create_user
+from app.services.admin_service import update_user
+from app.services.admin_service import delete_user
 from app.services.tracking_service import get_course_roster
 from app.services.tracking_service import get_student_progress_detail
 from app.services.tracking_service import list_students
@@ -59,6 +66,83 @@ def list_roles(
     current_user = Depends(require_admin)
 ):
     return [{"value": seniority} for seniority in Seniority]
+
+
+@router.get("/users", response_model=list[UserListItem])
+def get_users(
+    current_user = Depends(require_admin),
+    db: Session = Depends(get_db)
+):
+    return list_all_users(db)
+
+
+@router.post("/users", response_model=UserListItem)
+def add_user(
+    request: CreateUserRequest,
+    current_user = Depends(require_admin),
+    db: Session = Depends(get_db)
+):
+    try:
+        return create_user(
+            db=db,
+            name=request.name,
+            username=request.username,
+            email=request.email,
+            password=request.password,
+            role=request.role,
+            department=request.department.value if request.department else None,
+            seniority=request.seniority.value if request.seniority else None
+        )
+    except ValueError as error:
+        raise HTTPException(status_code=400, detail=str(error))
+
+
+@router.patch("/users/{user_id}", response_model=UserListItem)
+def edit_user(
+    user_id: int,
+    request: UpdateUserRequest,
+    current_user = Depends(require_admin),
+    db: Session = Depends(get_db)
+):
+    try:
+        user = update_user(
+            db=db,
+            user_id=user_id,
+            name=request.name,
+            username=request.username,
+            email=request.email,
+            password=request.password,
+            role=request.role,
+            department=request.department.value if request.department else None,
+            seniority=request.seniority.value if request.seniority else None
+        )
+    except ValueError as error:
+        raise HTTPException(status_code=400, detail=str(error))
+
+    if user is None:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    return user
+
+
+@router.delete("/users/{user_id}")
+def remove_user(
+    user_id: int,
+    current_user = Depends(require_admin),
+    db: Session = Depends(get_db)
+):
+    if current_user.id == user_id:
+        raise HTTPException(
+            status_code=400,
+            detail="You cannot delete your own account"
+        )
+
+    deleted = delete_user(db, user_id)
+
+    if not deleted:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    return {"deleted": True}
 
 
 @router.patch("/users/{user_id}/access-profile", response_model=UserResponse)
