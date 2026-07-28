@@ -9,18 +9,19 @@ import { api, request } from "./client";
 /* ---------------------------------------------------------------- auth --- */
 
 export const authApi = {
-  // OAuth2PasswordRequestForm: the email goes in the `username` field.
-  login: (email, password) =>
+  // OAuth2PasswordRequestForm's field is always called `username`, but the
+  // backend accepts either an account's username or its email in it.
+  login: (identifier, password) =>
     request("/auth/login", {
       method: "POST",
-      form: { username: email, password },
+      form: { username: identifier, password },
       auth: false,
     }),
 
-  register: (name, email, password) =>
+  register: (name, username, email, password) =>
     request("/auth/register", {
       method: "POST",
-      body: { name, email, password },
+      body: { name, username, email, password },
       auth: false,
     }),
 
@@ -101,6 +102,19 @@ export const progressApi = {
   complete: (subchapterId) => api.post("/progress/complete", { subchapter_id: subchapterId }),
 
   mine: () => api.get("/progress/me"),
+};
+
+/* ------------------------------------------------------- organisation --- */
+
+export const organisationApi = {
+  getDomain: () => api.get("/admin/organisation/domain"),
+
+  setDomain: (customDomain) =>
+    api.post("/admin/organisation/domain", { custom_domain: customDomain }),
+
+  verifyDomain: () => api.post("/admin/organisation/domain/verify"),
+
+  removeDomain: () => api.delete("/admin/organisation/domain"),
 };
 
 /* ----------------------------------------------------- student summary --- */
