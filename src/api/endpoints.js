@@ -9,18 +9,19 @@ import { api, request } from "./client";
 /* ---------------------------------------------------------------- auth --- */
 
 export const authApi = {
-  // OAuth2PasswordRequestForm: the email goes in the `username` field.
-  login: (email, password) =>
+  // OAuth2PasswordRequestForm's field is always called `username`, but the
+  // backend accepts either an account's username or its email in it.
+  login: (identifier, password) =>
     request("/auth/login", {
       method: "POST",
-      form: { username: email, password },
+      form: { username: identifier, password },
       auth: false,
     }),
 
-  register: (name, email, password) =>
+  register: (name, username, email, password) =>
     request("/auth/register", {
       method: "POST",
-      body: { name, email, password },
+      body: { name, username, email, password },
       auth: false,
     }),
 
@@ -83,6 +84,14 @@ export const adminApi = {
 
   setAccessProfile: (userId, department, seniority) =>
     api.patch(`/admin/users/${userId}/access-profile`, { department, seniority }),
+
+  users: () => api.get("/admin/users"),
+
+  createUser: (user) => api.post("/admin/users", user),
+
+  updateUser: (userId, changes) => api.patch(`/admin/users/${userId}`, changes),
+
+  deleteUser: (userId) => api.delete(`/admin/users/${userId}`),
 };
 
 /* ------------------------------------------------------------ learning --- */

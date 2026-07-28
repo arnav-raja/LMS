@@ -40,10 +40,26 @@ export default function AdminDashboard() {
       />
 
       <div className="stat-grid">
-        <StatCard label="Students" value={stats.data.users} />
-        <StatCard label="Courses" value={stats.data.courses} footnote={`${published.length} published`} />
-        <StatCard label="Access rules" value={stats.data.access_rules} />
-        <StatCard label="Subchapters completed" value={stats.data.completed_subchapters} />
+        <StatCard label="Students" value={stats.data.total_students} />
+        <StatCard
+          label="Students without access"
+          value={stats.data.students_without_access}
+          footnote={
+            stats.data.students_without_access > 0
+              ? "Missing a department, seniority, or matching access rule"
+              : "Everyone can reach at least one course"
+          }
+        />
+        <StatCard
+          label="Average completion"
+          value={`${stats.data.average_completion_percentage}%`}
+          footnote="Across every student's accessible courses"
+        />
+        <StatCard
+          label="Completed this week"
+          value={stats.data.completions_last_7_days}
+          footnote="Subchapters finished in the last 7 days"
+        />
       </div>
 
       <div className="section-heading">
