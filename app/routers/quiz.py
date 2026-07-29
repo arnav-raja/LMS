@@ -141,7 +141,14 @@ def take_quiz(
             detail="Complete every lesson in this chapter first"
         )
 
-    return quiz
+    return {
+        "id": quiz.id,
+        "chapter_id": quiz.chapter_id,
+        "course_id": quiz.chapter.course_id,
+        "title": quiz.title,
+        "passing_score": quiz.passing_score,
+        "questions": quiz.questions,
+    }
 
 
 @router.post("/quizzes/{quiz_id}/submit", response_model=QuizAttemptResponse)
@@ -172,15 +179,25 @@ def submit_quiz(
         answers=request.answers
     )
 
+    certificate_issued = False
+
     if attempt.passed:
         # A passed quiz may be the last requirement for the course —
         # check whether a certificate should now be issued.
         from app.services.certificate_service import check_and_issue_certificate
 
-        check_and_issue_certificate(
+        _, certificate_issued = check_and_issue_certificate(
             db=db,
             user_id=current_user.id,
             course_id=quiz.chapter.course_id
         )
 
-    return attempt
+    return {
+        "id": attempt.id,
+        "quiz_id": attempt.quiz_id,
+        "score": attempt.score,
+        "passed": attempt.passed,
+        "submitted_at": attempt.submitted_at,
+        "course_id": quiz.chapter.course_id,
+        "certificate_issued": certificate_issued,
+    }

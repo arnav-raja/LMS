@@ -10,6 +10,7 @@ class ProgressResponse(BaseModel):
     user_id: int
     subchapter_id: int
     is_completed: bool
+    certificate_issued: bool = False
 
     class Config:
         from_attributes = True

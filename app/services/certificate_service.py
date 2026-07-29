@@ -68,10 +68,15 @@ def check_and_issue_certificate(
     db: Session,
     user_id: int,
     course_id: int
-) -> Certificate | None:
+) -> tuple[Certificate | None, bool]:
     """Called after any subchapter completion or quiz pass. Issues the
     certificate automatically the moment every requirement is met —
-    there is no separate admin action to trigger it."""
+    there is no separate admin action to trigger it.
+
+    Returns (certificate, was_newly_issued). The caller needs to know
+    whether this specific call is what earned the certificate, so it
+    can show a "you've just earned this" moment rather than treating an
+    already-existing certificate the same way."""
     existing = (
         db.query(Certificate)
         .filter(
@@ -82,10 +87,10 @@ def check_and_issue_certificate(
     )
 
     if existing is not None:
-        return existing
+        return existing, False
 
     if not is_course_complete(db, user_id, course_id):
-        return None
+        return None, False
 
     certificate = Certificate(
         user_id=user_id,
@@ -96,7 +101,7 @@ def check_and_issue_certificate(
     db.commit()
     db.refresh(certificate)
 
-    return certificate
+    return certificate, True
 
 
 def get_user_certificates(

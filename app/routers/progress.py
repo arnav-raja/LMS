@@ -70,13 +70,19 @@ def complete(
     # A course with no quizzes at all becomes complete the moment its last
     # subchapter is marked done, so this check has to run here too, not
     # only after a quiz submission.
-    check_and_issue_certificate(
+    _, certificate_issued = check_and_issue_certificate(
         db=db,
         user_id=current_user.id,
         course_id=course_id
     )
 
-    return result
+    return {
+        "id": result.id,
+        "user_id": result.user_id,
+        "subchapter_id": result.subchapter_id,
+        "is_completed": result.is_completed,
+        "certificate_issued": certificate_issued,
+    }
 
 
 @router.get("/me", response_model=list[ProgressResponse])

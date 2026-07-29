@@ -105,6 +105,7 @@ class QuizQuestionResponse(BaseModel):
 class QuizTakeResponse(BaseModel):
     id: int
     chapter_id: int
+    course_id: int
     title: str
     passing_score: int
     questions: list[QuizQuestionResponse]
@@ -128,6 +129,8 @@ class QuizAttemptResponse(BaseModel):
     score: float
     passed: bool
     submitted_at: datetime
+    course_id: int
+    certificate_issued: bool = False
 
     class Config:
         from_attributes = True
