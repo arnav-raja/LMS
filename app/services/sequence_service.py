@@ -4,6 +4,7 @@ from app.models.chapter import Chapter
 from app.models.subchapter import Subchapter
 
 from app.services.progress_service import get_completed_subchapter_ids
+from app.services.quiz_service import get_course_quiz_gate_map
 
 
 def get_course_subchapter_sequence(
@@ -29,15 +30,30 @@ def get_subchapter_lock_map(
     """For every subchapter in the course, whether the user has completed
     it and whether it is locked. A subchapter unlocks only once the one
     immediately before it (in course order) has been completed; the
-    first subchapter is always unlocked."""
+    first subchapter is always unlocked.
+
+    Additionally, since each chapter's quiz is mandatory, the first
+    subchapter of a new chapter also stays locked until the previous
+    chapter's quiz has been passed (chapters without a quiz never gate
+    on this)."""
     sequence = get_course_subchapter_sequence(db, course_id)
     completed_ids = get_completed_subchapter_ids(db, user_id)
+    quiz_gate_map = get_course_quiz_gate_map(db, user_id, course_id)
 
     lock_map: dict[int, dict] = {}
     previous_completed = True
+    previous_chapter_id = None
 
     for subchapter in sequence:
         is_completed = subchapter.id in completed_ids
+        is_first_in_chapter = subchapter.chapter_id != previous_chapter_id
+
+        if is_first_in_chapter and previous_chapter_id is not None:
+            previous_chapter_gate = quiz_gate_map.get(
+                previous_chapter_id,
+                {"passed": True}
+            )
+            previous_completed = previous_completed and previous_chapter_gate["passed"]
 
         lock_map[subchapter.id] = {
             "is_completed": is_completed,
@@ -45,6 +61,7 @@ def get_subchapter_lock_map(
         }
 
         previous_completed = is_completed
+        previous_chapter_id = subchapter.chapter_id
 
     return lock_map
 

@@ -14,6 +14,7 @@ from app.schemas.progress import CompleteSubchapterRequest
 from app.schemas.progress import ProgressResponse
 
 from app.services.access_service import user_has_access
+from app.services.certificate_service import check_and_issue_certificate
 from app.services.progress_service import complete_subchapter
 from app.services.progress_service import get_subchapter_course_id
 from app.services.progress_service import get_user_progress
@@ -60,11 +61,22 @@ def complete(
             detail="Complete the previous subchapter first"
         )
 
-    return complete_subchapter(
+    result = complete_subchapter(
         db=db,
         user_id=current_user.id,
         subchapter_id=request.subchapter_id
     )
+
+    # A course with no quizzes at all becomes complete the moment its last
+    # subchapter is marked done, so this check has to run here too, not
+    # only after a quiz submission.
+    check_and_issue_certificate(
+        db=db,
+        user_id=current_user.id,
+        course_id=course_id
+    )
+
+    return result
 
 
 @router.get("/me", response_model=list[ProgressResponse])

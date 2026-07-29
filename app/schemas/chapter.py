@@ -1,6 +1,7 @@
 from pydantic import BaseModel
 
 from app.schemas.subchapter import SubchapterResponse
+from app.schemas.quiz import QuizSummary
 
 
 class ChapterResponse(BaseModel):
@@ -11,6 +12,7 @@ class ChapterResponse(BaseModel):
     description: str | None
     num_subchapters: int
     subchapters: list[SubchapterResponse] = []
+    quiz: QuizSummary | None = None
 
     class Config:
         from_attributes = True

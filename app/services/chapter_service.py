@@ -4,6 +4,7 @@ from app.models.chapter import Chapter
 from app.models.user import User
 
 from app.services.sequence_service import get_subchapter_lock_map
+from app.services.quiz_service import get_quiz_summary_for_chapter
 
 
 def get_course_chapters(
@@ -49,9 +50,11 @@ def _serialize_subchapter(subchapter, lock_map, bypass_lock: bool) -> dict:
 
 
 def serialize_chapter(
+    db: Session,
     chapter: Chapter,
     lock_map: dict,
-    bypass_lock: bool
+    bypass_lock: bool,
+    user_id: int
 ) -> dict:
     subchapters = sorted(
         chapter.subchapters,
@@ -68,7 +71,8 @@ def serialize_chapter(
         "subchapters": [
             _serialize_subchapter(subchapter, lock_map, bypass_lock)
             for subchapter in subchapters
-        ]
+        ],
+        "quiz": get_quiz_summary_for_chapter(db, user_id, chapter.id)
     }
 
 
@@ -82,7 +86,7 @@ def get_course_chapters_for_user(
     bypass_lock = user.role == "admin"
 
     return [
-        serialize_chapter(chapter, lock_map, bypass_lock)
+        serialize_chapter(db, chapter, lock_map, bypass_lock, user.id)
         for chapter in chapters
     ]
 
@@ -95,4 +99,4 @@ def get_chapter_for_user(
     lock_map = get_subchapter_lock_map(db, user.id, chapter.course_id)
     bypass_lock = user.role == "admin"
 
-    return serialize_chapter(chapter, lock_map, bypass_lock)
+    return serialize_chapter(db, chapter, lock_map, bypass_lock, user.id)

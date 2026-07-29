@@ -13,6 +13,8 @@ from app.routers.admin import router as admin_router
 from app.routers.dashboard import router as dashboard_router
 from app.routers.course_builder import router as course_builder_router
 from app.routers.organisation import router as organisation_router
+from app.routers.quiz import router as quiz_router
+from app.routers.certificate import router as certificate_router
 
 
 app = FastAPI(
@@ -40,6 +42,8 @@ app.include_router(admin_router)
 app.include_router(dashboard_router)
 app.include_router(course_builder_router)
 app.include_router(organisation_router)
+app.include_router(quiz_router)
+app.include_router(certificate_router)
 
 
 @app.on_event("startup")

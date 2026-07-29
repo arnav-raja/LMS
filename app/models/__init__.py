@@ -5,3 +5,9 @@ from app.models.subchapter import Subchapter
 from app.models.course_access_rule import CourseAccessRule
 from app.models.progress import Progress
 from app.models.organisation import Organisation
+from app.models.quiz import Quiz
+from app.models.quiz import QuizQuestion
+from app.models.quiz import QuizOption
+from app.models.quiz import QuizAttempt
+from app.models.quiz import QuizAnswer
+from app.models.certificate import Certificate

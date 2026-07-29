@@ -55,3 +55,10 @@ class Chapter(Base):
         back_populates="chapter",
         cascade="all, delete-orphan"
     )
+
+    quiz = relationship(
+        "Quiz",
+        back_populates="chapter",
+        uselist=False,
+        cascade="all, delete-orphan"
+    )
