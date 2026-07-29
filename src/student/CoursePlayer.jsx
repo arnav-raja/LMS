@@ -47,7 +47,33 @@ export default function CoursePlayer() {
     });
   };
 
-  /** Pulls the course structure, progress figures, and the resume point. */
+  /** The true course-wide order a student moves through: each chapter's
+   * subchapters in order, followed by that chapter's quiz (when it has
+   * one). This is what "next" means — not just the next subchapter. */
+  const buildLearningSequence = (chapterList) => {
+    const items = [];
+
+    chapterList.forEach((chapter) => {
+      chapter.subchapters.forEach((sub) => {
+        items.push({ type: "subchapter", id: sub.id, is_locked: sub.is_locked, chapter });
+      });
+
+      if (chapter.quiz) {
+        items.push({
+          type: "quiz",
+          id: chapter.quiz.id,
+          is_locked: !chapter.quiz.is_unlocked,
+          chapter,
+        });
+      }
+    });
+
+    return items;
+  };
+
+  /** Pulls the course structure, progress figures, and the resume point.
+   * Returns the freshly-fetched chapter data so callers can act on it
+   * straight away, rather than reading it back out of stale state. */
   const load = useCallback(
     async ({ keepActive = false } = {}) => {
       setError(null);
@@ -85,8 +111,11 @@ export default function CoursePlayer() {
           );
           setExpandedChapterId(owningChapter?.id ?? chapterData[0]?.id ?? null);
         }
+
+        return chapterData;
       } catch (err) {
         setError(err);
+        return null;
       } finally {
         setLoading(false);
       }
@@ -106,14 +135,32 @@ export default function CoursePlayer() {
     [chapters]
   );
 
+  const learningSequence = useMemo(() => buildLearningSequence(chapters), [chapters]);
+
   const active = allSubchapters.find((s) => s.id === activeId) || null;
-  const activeIndex = allSubchapters.findIndex((s) => s.id === activeId);
-  const next = activeIndex >= 0 ? allSubchapters[activeIndex + 1] : null;
+  const activeSequenceIndex = learningSequence.findIndex(
+    (item) => item.type === "subchapter" && item.id === activeId
+  );
+  const next = activeSequenceIndex >= 0 ? learningSequence[activeSequenceIndex + 1] : null;
 
   const selectLesson = (subchapter, chapterId) => {
     if (subchapter.is_locked) return;
     setActiveId(subchapter.id);
     setExpandedChapterId(chapterId);
+  };
+
+  /** Moves onto a sequence item — either the next lesson, or the chapter
+   * quiz, which lives on its own route. Refuses to move onto anything
+   * still locked. */
+  const goToSequenceItem = (item) => {
+    if (!item || item.is_locked) return;
+
+    if (item.type === "quiz") {
+      navigate(`/quizzes/${item.id}`);
+    } else {
+      setActiveId(item.id);
+      setExpandedChapterId(item.chapter.id);
+    }
   };
 
   const markComplete = async () => {
@@ -122,11 +169,18 @@ export default function CoursePlayer() {
     setActionError(null);
     try {
       await progressApi.complete(active.id);
-      await load({ keepActive: true });
-      // Move forward once the next lesson has unlocked.
-      if (next) {
-        setActiveId(next.id);
-        setExpandedChapterId(next.chapter.id);
+      const freshChapters = await load({ keepActive: true });
+
+      // Move forward once the next step has unlocked. Built from the
+      // just-fetched data, not stale state, since completing this lesson
+      // may unlock the very next item (e.g. the chapter quiz).
+      if (freshChapters) {
+        const freshSequence = buildLearningSequence(freshChapters);
+        const freshIndex = freshSequence.findIndex(
+          (item) => item.type === "subchapter" && item.id === active.id
+        );
+        const freshNext = freshIndex >= 0 ? freshSequence[freshIndex + 1] : null;
+        goToSequenceItem(freshNext);
       }
     } catch (err) {
       setActionError(err.message);
@@ -320,14 +374,8 @@ export default function CoursePlayer() {
                   <>
                     <span className="lesson-done-mark">Completed</span>
                     {next && !next.is_locked && (
-                      <Button
-                        variant="ghost"
-                        onClick={() => {
-                          setActiveId(next.id);
-                          setExpandedChapterId(next.chapter.id);
-                        }}
-                      >
-                        Next lesson
+                      <Button variant="ghost" onClick={() => goToSequenceItem(next)}>
+                        {next.type === "quiz" ? "Take chapter quiz" : "Next lesson"}
                       </Button>
                     )}
                   </>

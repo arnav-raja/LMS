@@ -194,7 +194,12 @@ function QuizBuilder({ chapters, existingQuiz, defaultChapterId, onClose, onSave
           </div>
 
           {question.options.map((option, oIndex) => (
-            <div className="builder-sub" key={oIndex}>
+            <div
+              className={`builder-option-row ${
+                option.is_correct ? "builder-option-row-correct" : ""
+              }`}
+              key={oIndex}
+            >
               <input
                 type="radio"
                 name={`correct-${qIndex}`}

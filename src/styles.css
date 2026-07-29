@@ -1371,6 +1371,83 @@ a {
   margin: 12px 0;
 }
 
+/* ------------------------------------------------- quiz option rows --- */
+/* Admin builder and student quiz-take each get their own option-row
+   class. Both used to share .builder-sub, which was only ever styled
+   for a block-level admin <div> — reusing it on the student page's
+   <label> (inline by default) collapsed every option onto one line. */
+
+.builder-option-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border-left: 2px solid var(--parchment);
+  padding: 10px 12px;
+  margin: 8px 0;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.builder-option-row .text-input {
+  flex: 1;
+}
+
+.builder-option-row-correct {
+  border-left-color: var(--gold);
+  background: var(--parchment);
+}
+
+.quiz-progress {
+  font-family: var(--font-ui);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--bronze);
+  margin: 4px 0 20px;
+}
+
+.quiz-question {
+  background: var(--white);
+  border: 1px solid var(--parchment);
+  padding: 18px 20px;
+  margin-bottom: 14px;
+}
+
+.quiz-question-head {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 14px;
+}
+
+.quiz-question-text {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--charcoal);
+  line-height: 1.5;
+}
+
+.quiz-option {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border: 1px solid var(--parchment);
+  border-left: 2px solid var(--parchment);
+  padding: 12px 14px;
+  margin: 8px 0;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.quiz-option:hover {
+  border-color: var(--bronze);
+}
+
+.quiz-option-checked {
+  border-color: var(--gold);
+  border-left-color: var(--gold);
+  background: var(--parchment);
+}
+
 /* ------------------------------------------------------- access grid --- */
 
 .access-grid {

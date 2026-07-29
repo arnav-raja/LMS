@@ -32,7 +32,8 @@ export default function QuizTake() {
   const selectOption = (questionId, optionId) =>
     setSelections((prev) => ({ ...prev, [questionId]: optionId }));
 
-  const allAnswered = quiz.questions.every((q) => selections[q.id] !== undefined);
+  const answeredCount = quiz.questions.filter((q) => selections[q.id] !== undefined).length;
+  const allAnswered = answeredCount === quiz.questions.length;
 
   const submit = async () => {
     setSubmitting(true);
@@ -98,27 +99,36 @@ export default function QuizTake() {
       <p className="page-lede">
         Answer every question, then submit. You need {quiz.passing_score}% to pass.
       </p>
+      <div className="quiz-progress">
+        {answeredCount} of {quiz.questions.length} answered
+      </div>
 
       {quiz.questions.map((question, index) => (
-        <div className="builder-chapter" key={question.id}>
-          <div className="builder-chapter-head">
-            <span className="builder-chapter-number">{index + 1}</span>
-            <span className="lesson-title" style={{ fontSize: "1rem" }}>
-              {question.question_text}
+        <div className="quiz-question" key={question.id}>
+          <div className="quiz-question-head">
+            <span className="builder-chapter-number">
+              Question {index + 1} of {quiz.questions.length}
             </span>
+            <span className="quiz-question-text">{question.question_text}</span>
           </div>
 
-          {question.options.map((option) => (
-            <label className="builder-sub" key={option.id} style={{ cursor: "pointer" }}>
-              <input
-                type="radio"
-                name={`question-${question.id}`}
-                checked={selections[question.id] === option.id}
-                onChange={() => selectOption(question.id, option.id)}
-              />
-              <span>{option.option_text}</span>
-            </label>
-          ))}
+          {question.options.map((option) => {
+            const checked = selections[question.id] === option.id;
+            return (
+              <label
+                className={`quiz-option ${checked ? "quiz-option-checked" : ""}`}
+                key={option.id}
+              >
+                <input
+                  type="radio"
+                  name={`question-${question.id}`}
+                  checked={checked}
+                  onChange={() => selectOption(question.id, option.id)}
+                />
+                <span>{option.option_text}</span>
+              </label>
+            );
+          })}
         </div>
       ))}
 
