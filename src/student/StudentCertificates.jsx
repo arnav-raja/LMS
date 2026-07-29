@@ -1,0 +1,57 @@
+import { Award } from "lucide-react";
+import { certificateApi } from "../api/endpoints";
+import { useAsync } from "../api/useAsync";
+import { EmptyState, ErrorPanel, Loading, PageTitle } from "../components/ui";
+
+const formatDate = (value) => {
+  if (!value) return "";
+  return new Date(value).toLocaleDateString("en-GB", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
+};
+
+export default function StudentCertificates() {
+  const { data: certificates, loading, error, reload } = useAsync(
+    () => certificateApi.mine(),
+    []
+  );
+
+  if (loading) return <Loading label="Loading your certificates" />;
+  if (error) return <ErrorPanel error={error} onRetry={reload} />;
+
+  return (
+    <>
+      <PageTitle
+        eyebrow="Certificates"
+        title="Your certificates"
+        lede="Earned automatically the moment you complete every chapter and pass every quiz in a course."
+      />
+
+      {certificates.length === 0 ? (
+        <EmptyState
+          title="No certificates yet"
+          body="Complete every chapter and quiz in a course to earn its certificate — it will appear here the moment you do."
+        />
+      ) : (
+        <div className="course-grid">
+          {certificates.map((certificate) => (
+            <div className="course-card" key={certificate.id}>
+              <div className="course-card-top">
+                <Award size={20} />
+                <div className="course-card-title">{certificate.course_title}</div>
+              </div>
+              <div className="course-card-desc">
+                Certificate number <code>{certificate.certificate_number}</code>
+              </div>
+              <div className="course-card-next muted">
+                Issued {formatDate(certificate.issued_at)}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </>
+  );
+}

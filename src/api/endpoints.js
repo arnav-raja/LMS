@@ -121,6 +121,37 @@ export const meApi = {
   dashboard: () => api.get("/me/dashboard"),
 };
 
+/* ----------------------------------------------------------------- quiz --- */
+
+export const quizApi = {
+  // Admin: builder saves the whole quiz (questions + options) in one go.
+  save: (chapterId, quiz) => api.post(`/admin/chapters/${chapterId}/quiz`, quiz),
+
+  adminList: () => api.get("/admin/quizzes"),
+
+  adminGet: (quizId) => api.get(`/admin/quizzes/${quizId}`),
+
+  remove: (quizId) => api.delete(`/admin/quizzes/${quizId}`),
+
+  results: (quizId) => api.get(`/admin/quizzes/${quizId}/results`),
+
+  // Student: list across every accessible course, take, and submit.
+  mine: () => api.get("/quizzes/me"),
+
+  take: (quizId) => api.get(`/quizzes/${quizId}`),
+
+  submit: (quizId, answers) => api.post(`/quizzes/${quizId}/submit`, { answers }),
+};
+
+/* --------------------------------------------------------- certificate --- */
+
+export const certificateApi = {
+  mine: () => api.get("/certificates/me"),
+
+  all: (courseId) =>
+    api.get(courseId ? `/admin/certificates?course_id=${courseId}` : "/admin/certificates"),
+};
+
 /* ----------------------------------------------------------- constants --- */
 
 export const DEPARTMENTS = [

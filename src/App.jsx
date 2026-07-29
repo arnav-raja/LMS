@@ -8,10 +8,15 @@ import AdminDashboard from "./admin/AdminDashboard";
 import AdminStudents from "./admin/AdminStudents";
 import AdminCourses from "./admin/AdminCourses";
 import AdminCourseRoster from "./admin/AdminCourseRoster";
+import AdminQuizzes from "./admin/AdminQuizzes";
+import AdminCertificates from "./admin/AdminCertificates";
 
 import StudentDashboard from "./student/StudentDashboard";
 import StudentCourses from "./student/StudentCourses";
 import CoursePlayer from "./student/CoursePlayer";
+import StudentQuizzes from "./student/StudentQuizzes";
+import QuizTake from "./student/QuizTake";
+import StudentCertificates from "./student/StudentCertificates";
 
 function AdminOnly({ children }) {
   const { isAdmin } = useAuth();
@@ -32,6 +37,9 @@ function Routing() {
 
         <Route path="courses" element={<StudentCourses />} />
         <Route path="courses/:courseId" element={<CoursePlayer />} />
+        <Route path="quizzes" element={<StudentQuizzes />} />
+        <Route path="quizzes/:quizId" element={<QuizTake />} />
+        <Route path="certificates" element={<StudentCertificates />} />
 
         <Route
           path="admin"
@@ -62,6 +70,22 @@ function Routing() {
           element={
             <AdminOnly>
               <AdminCourseRoster />
+            </AdminOnly>
+          }
+        />
+        <Route
+          path="admin/quizzes"
+          element={
+            <AdminOnly>
+              <AdminQuizzes />
+            </AdminOnly>
+          }
+        />
+        <Route
+          path="admin/certificates"
+          element={
+            <AdminOnly>
+              <AdminCertificates />
             </AdminOnly>
           }
         />

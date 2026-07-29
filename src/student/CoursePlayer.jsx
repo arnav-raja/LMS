@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { PanelLeftClose, PanelLeftOpen, ChevronDown, ChevronRight } from "lucide-react";
+import { PanelLeftClose, PanelLeftOpen, ChevronDown, ChevronRight, ClipboardList, CheckCircle2, Lock } from "lucide-react";
 import { courseApi, learningApi, progressApi } from "../api/endpoints";
 import { Button, ErrorPanel, Loading, ProgressBar } from "../components/ui";
 
@@ -244,6 +244,45 @@ export default function CoursePlayer() {
                           </li>
                         );
                       })}
+
+                      {chapter.quiz && (
+                        <li>
+                          <button
+                            className={`rail-item rail-item-${
+                              chapter.quiz.is_passed
+                                ? "done"
+                                : chapter.quiz.is_unlocked
+                                ? "open"
+                                : "locked"
+                            }`}
+                            onClick={() =>
+                              chapter.quiz.is_unlocked && navigate(`/quizzes/${chapter.quiz.id}`)
+                            }
+                            disabled={!chapter.quiz.is_unlocked}
+                            title={
+                              !chapter.quiz.is_unlocked
+                                ? "Complete every lesson in this chapter first"
+                                : "Mandatory quiz for this chapter"
+                            }
+                          >
+                            {chapter.quiz.is_passed ? (
+                              <CheckCircle2 size={14} className="chapter-dot" />
+                            ) : chapter.quiz.is_unlocked ? (
+                              <ClipboardList size={14} className="chapter-dot" />
+                            ) : (
+                              <Lock size={14} className="chapter-dot" />
+                            )}
+                            <span className="rail-item-title">
+                              {chapter.quiz.title}
+                              {chapter.quiz.is_passed
+                                ? " — passed"
+                                : chapter.quiz.attempts_count > 0
+                                ? " — retake"
+                                : ""}
+                            </span>
+                          </button>
+                        </li>
+                      )}
                     </ul>
                   )}
                 </div>

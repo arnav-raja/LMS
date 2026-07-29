@@ -5,6 +5,8 @@ import {
   Users,
   BookOpen,
   GraduationCap,
+  ClipboardList,
+  Award,
   PanelLeftClose,
   PanelLeftOpen,
   LogOut,
@@ -18,11 +20,15 @@ const ADMIN_LINKS = [
   { to: "/admin", label: "Dashboard", end: true, icon: LayoutDashboard },
   { to: "/admin/students", label: "Students", icon: Users },
   { to: "/admin/courses", label: "Courses", icon: BookOpen },
+  { to: "/admin/quizzes", label: "Quizzes", icon: ClipboardList },
+  { to: "/admin/certificates", label: "Certificates", icon: Award },
 ];
 
 const STUDENT_LINKS = [
   { to: "/", label: "My learning", end: true, icon: GraduationCap },
   { to: "/courses", label: "Courses", icon: BookOpen },
+  { to: "/quizzes", label: "Quizzes", icon: ClipboardList },
+  { to: "/certificates", label: "Certificates", icon: Award },
 ];
 
 const COLLAPSE_KEY = "arnav.sidebarCollapsed";
@@ -66,9 +72,6 @@ export default function Shell() {
         <div className="sidebar-brand">
           <img className="sidebar-crest" src={crest} alt="" aria-hidden="true" />
           <img className="sidebar-wordmark" src={wordmark} alt="Arnav" />
-          <div className="sidebar-tagline">
-            {isAdmin ? "Admin" : "Learning"}
-          </div>
         </div>
 
         <nav className="sidebar-nav">
