@@ -1086,6 +1086,28 @@ a {
   font-style: italic;
 }
 
+.player-interstitial {
+  max-width: 46ch;
+  margin: 32px auto;
+  text-align: center;
+  padding: 8px 0 0;
+}
+
+.player-interstitial .lesson-title {
+  margin-top: 4px;
+}
+
+.player-interstitial .lesson-body {
+  max-width: none;
+  color: var(--stone);
+}
+
+.player-interstitial .lesson-actions {
+  border-top: none;
+  padding-top: 8px;
+  justify-content: center;
+}
+
 .lesson-eyebrow {
   font-family: var(--font-ui);
   font-size: 11px;

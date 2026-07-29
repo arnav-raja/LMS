@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { PanelLeftClose, PanelLeftOpen, ChevronDown, ChevronRight, ClipboardList, CheckCircle2, Lock } from "lucide-react";
 import { courseApi, learningApi, progressApi } from "../api/endpoints";
 import { Button, ErrorPanel, Loading, ProgressBar } from "../components/ui";
@@ -9,6 +9,7 @@ const RAIL_OPEN_KEY = "arnav.playerRailOpen";
 export default function CoursePlayer() {
   const { courseId } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
 
   const [course, setCourse] = useState(null);
   const [chapters, setChapters] = useState([]);
@@ -18,6 +19,25 @@ export default function CoursePlayer() {
   const [error, setError] = useState(null);
   const [completing, setCompleting] = useState(false);
   const [actionError, setActionError] = useState(null);
+
+  // Set when a lesson (or quiz) completion advances the student onto a
+  // celebratory hand-off screen — "attempt this chapter's quiz" or
+  // "you've earned a certificate" — rather than straight onto more
+  // content. Null means: just show the active lesson as normal.
+  const [interstitial, setInterstitial] = useState(null);
+
+  // QuizTake redirects here after a passing attempt. If that pass was
+  // also the final requirement for the course, it flags this via router
+  // state so we can show the certificate hand-off immediately, rather
+  // than resuming into a lesson that no longer exists.
+  useEffect(() => {
+    if (location.state?.showCertificateInterstitial) {
+      setInterstitial({ type: "course-complete" });
+      navigate(location.pathname, { replace: true, state: {} });
+    }
+    // Only ever meant to run once, right after such a redirect lands.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // The rail can be hidden entirely to give lesson text the full width —
   // remembered across visits, same as the sidebar's collapse state.
@@ -145,19 +165,22 @@ export default function CoursePlayer() {
 
   const selectLesson = (subchapter, chapterId) => {
     if (subchapter.is_locked) return;
+    setInterstitial(null);
     setActiveId(subchapter.id);
     setExpandedChapterId(chapterId);
   };
 
-  /** Moves onto a sequence item — either the next lesson, or the chapter
-   * quiz, which lives on its own route. Refuses to move onto anything
-   * still locked. */
-  const goToSequenceItem = (item) => {
+  /** Moves onto a sequence item. A subchapter is shown directly; a quiz is
+   * never opened automatically — the student sees a "chapter complete,
+   * attempt the quiz" hand-off first and opens it themselves from there.
+   * Refuses to act on anything still locked. */
+  const presentNext = (item) => {
     if (!item || item.is_locked) return;
 
     if (item.type === "quiz") {
-      navigate(`/quizzes/${item.id}`);
+      setInterstitial({ type: "chapter-quiz", chapter: item.chapter });
     } else {
+      setInterstitial(null);
       setActiveId(item.id);
       setExpandedChapterId(item.chapter.id);
     }
@@ -168,8 +191,15 @@ export default function CoursePlayer() {
     setCompleting(true);
     setActionError(null);
     try {
-      await progressApi.complete(active.id);
+      const response = await progressApi.complete(active.id);
       const freshChapters = await load({ keepActive: true });
+
+      if (response?.certificate_issued) {
+        // This was the last requirement for the whole course — nothing
+        // to advance onto, just the certificate hand-off.
+        setInterstitial({ type: "course-complete" });
+        return;
+      }
 
       // Move forward once the next step has unlocked. Built from the
       // just-fetched data, not stale state, since completing this lesson
@@ -180,7 +210,7 @@ export default function CoursePlayer() {
           (item) => item.type === "subchapter" && item.id === active.id
         );
         const freshNext = freshIndex >= 0 ? freshSequence[freshIndex + 1] : null;
-        goToSequenceItem(freshNext);
+        presentNext(freshNext);
       }
     } catch (err) {
       setActionError(err.message);
@@ -346,7 +376,33 @@ export default function CoursePlayer() {
         )}
 
         <section className="player-content">
-          {!active ? (
+          {interstitial?.type === "chapter-quiz" ? (
+            <div className="player-interstitial">
+              <div className="eyebrow">
+                Chapter {interstitial.chapter.chapter_number} complete
+              </div>
+              <h2 className="lesson-title">
+                Congratulations on completing {interstitial.chapter.title}
+              </h2>
+              <p className="lesson-body">
+                Attempt the "{interstitial.chapter.quiz.title}" quiz to unlock the next chapter.
+              </p>
+              <div className="lesson-actions">
+                <Button onClick={() => navigate(`/quizzes/${interstitial.chapter.quiz.id}`)}>
+                  Attempt quiz
+                </Button>
+              </div>
+            </div>
+          ) : interstitial?.type === "course-complete" ? (
+            <div className="player-interstitial">
+              <div className="eyebrow">Course complete</div>
+              <h2 className="lesson-title">Congratulations on completing the course</h2>
+              <p className="lesson-body">You've earned a certificate.</p>
+              <div className="lesson-actions">
+                <Button onClick={() => navigate("/certificates")}>View certificate</Button>
+              </div>
+            </div>
+          ) : !active ? (
             <div className="player-placeholder">
               Select a lesson from the contents to begin.
             </div>
@@ -374,7 +430,7 @@ export default function CoursePlayer() {
                   <>
                     <span className="lesson-done-mark">Completed</span>
                     {next && !next.is_locked && (
-                      <Button variant="ghost" onClick={() => goToSequenceItem(next)}>
+                      <Button variant="ghost" onClick={() => presentNext(next)}>
                         {next.type === "quiz" ? "Take chapter quiz" : "Next lesson"}
                       </Button>
                     )}

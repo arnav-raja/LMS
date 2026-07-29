@@ -46,6 +46,17 @@ export default function QuizTake() {
 
     try {
       const attempt = await quizApi.submit(quizId, answers);
+
+      if (attempt.passed) {
+        // Passing sends the student straight back into the course, onto
+        // whichever lesson unlocked next — not into the separate Quizzes
+        // section, which would break the learning flow they were just in.
+        navigate(`/courses/${attempt.course_id}`, {
+          state: attempt.certificate_issued ? { showCertificateInterstitial: true } : undefined,
+        });
+        return;
+      }
+
       setResult(attempt);
     } catch (err) {
       setSubmitError(err.message);
@@ -61,28 +72,23 @@ export default function QuizTake() {
           Back to quizzes
         </button>
 
-        <h1 className="page-title">{result.passed ? "You passed" : "Not quite there"}</h1>
+        <h1 className="page-title">Not quite there</h1>
 
         <div className="player-banner">
           You scored <strong>{result.score}%</strong> — the pass mark is {quiz.passing_score}%.
-          {result.passed
-            ? " The next chapter is now unlocked."
-            : " Review the chapter's lessons and try again when you're ready."}
+          Review the chapter's lessons and try again when you're ready.
         </div>
 
         <div className="lesson-actions">
-          <Button onClick={() => navigate("/quizzes")}>Back to quizzes</Button>
-          {!result.passed && (
-            <Button
-              variant="ghost"
-              onClick={() => {
-                setResult(null);
-                setSelections({});
-              }}
-            >
-              Retake now
-            </Button>
-          )}
+          <Button
+            variant="ghost"
+            onClick={() => {
+              setResult(null);
+              setSelections({});
+            }}
+          >
+            Retake now
+          </Button>
         </div>
       </>
     );
