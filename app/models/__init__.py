@@ -4,7 +4,6 @@ from app.models.chapter import Chapter
 from app.models.subchapter import Subchapter
 from app.models.course_access_rule import CourseAccessRule
 from app.models.progress import Progress
-from app.models.organisation import Organisation
 from app.models.quiz import Quiz
 from app.models.quiz import QuizQuestion
 from app.models.quiz import QuizOption

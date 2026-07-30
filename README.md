@@ -12,7 +12,6 @@ A Web-Based Learning Management System API built using FastAPI and PostgreSQL.
 - Automatic certificate issuance on course completion
 - Department/seniority-based course access rules
 - Admin dashboard and student roster views
-- Optional custom-domain support for a white-labeled deployment
 
 ## Technology Stack
 
