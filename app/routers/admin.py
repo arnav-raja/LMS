@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 
 from app.dependencies.admin import require_admin
+from app.dependencies.auth import get_current_user
 
 from app.constants import DEPARTMENT_LABELS
 from app.constants import Department
@@ -51,9 +52,11 @@ def dashboard(
     return get_dashboard(db)
 
 
+# Static label lookups, not admin actions — every signed-in user needs these
+# to render their own department/seniority (e.g. the sidebar), not just admins.
 @router.get("/departments", response_model=list[DepartmentOption])
 def list_departments(
-    current_user = Depends(require_admin)
+    current_user = Depends(get_current_user)
 ):
     return [
         {"code": department, "label": DEPARTMENT_LABELS[department]}
@@ -63,7 +66,7 @@ def list_departments(
 
 @router.get("/roles", response_model=list[RoleOption])
 def list_roles(
-    current_user = Depends(require_admin)
+    current_user = Depends(get_current_user)
 ):
     return [{"value": seniority} for seniority in Seniority]
 

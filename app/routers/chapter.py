@@ -24,7 +24,7 @@ router = APIRouter(
 )
 
 
-@router.get("/", response_model=list[ChapterResponse])
+@router.get("", response_model=list[ChapterResponse])
 def get_all(
     course_id: int,
     db: Session = Depends(get_db),
