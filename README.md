@@ -42,7 +42,7 @@ src/
 ├── components/
 │   ├── Shell.jsx       sidebar and layout, role-aware navigation
 │   └── ui.jsx          shared presentational pieces
-├── admin/              dashboard, students, courses, roster, custom domain
+├── admin/              dashboard, students, courses, roster
 ├── student/            dashboard, course browsing, course player
 ├── App.jsx             routing and guards
 └── styles/             tokens.css, layout.css, components.css, responsive.css
@@ -86,8 +86,6 @@ ever builds a URL by hand.
 | Admin | `GET /admin/students/{id}/progress` | Student drawer |
 | Admin | `GET /admin/courses/{id}/students` | Course roster |
 | Admin | `PATCH /admin/users/{id}/access-profile` | Student drawer |
-| Admin | `GET/POST/DELETE /admin/organisation/domain` | Custom domain settings |
-| Admin | `POST /admin/organisation/domain/verify` | Custom domain settings |
 | Learning | `GET /learning/courses/{id}/continue` | Course player |
 | Learning | `GET /learning/courses/{id}/progress` | Course player |
 | Progress | `POST /progress/complete` | Course player |

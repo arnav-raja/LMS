@@ -7,7 +7,6 @@ import {
   GraduationCap,
   ClipboardList,
   Award,
-  Globe,
   PanelLeftClose,
   PanelLeftOpen,
   LogOut,
@@ -24,7 +23,6 @@ const ADMIN_LINKS = [
   { to: "/admin/courses", label: "Courses", icon: BookOpen },
   { to: "/admin/quizzes", label: "Quizzes", icon: ClipboardList },
   { to: "/admin/certificates", label: "Certificates", icon: Award },
-  { to: "/admin/domain", label: "Custom Domain", icon: Globe },
 ];
 
 const STUDENT_LINKS = [

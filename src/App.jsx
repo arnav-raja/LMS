@@ -10,7 +10,6 @@ import AdminCourses from "./admin/AdminCourses";
 import AdminCourseRoster from "./admin/AdminCourseRoster";
 import AdminQuizzes from "./admin/AdminQuizzes";
 import AdminCertificates from "./admin/AdminCertificates";
-import AdminDomainSettings from "./admin/AdminDomainSettings";
 
 import StudentDashboard from "./student/StudentDashboard";
 import StudentCourses from "./student/StudentCourses";
@@ -87,14 +86,6 @@ function Routing() {
           element={
             <AdminOnly>
               <AdminCertificates />
-            </AdminOnly>
-          }
-        />
-        <Route
-          path="admin/domain"
-          element={
-            <AdminOnly>
-              <AdminDomainSettings />
             </AdminOnly>
           }
         />
