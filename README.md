@@ -38,14 +38,14 @@ src/
 │   └── useAsync.js     load / error / reload hook
 ├── auth/
 │   ├── AuthContext.jsx session state, restores token on refresh
-│   └── LoginPage.jsx   sign in and register
+│   └── LoginPage.jsx   sign in (there is no self-service registration)
 ├── components/
 │   ├── Shell.jsx       sidebar and layout, role-aware navigation
 │   └── ui.jsx          shared presentational pieces
-├── admin/              dashboard, students, courses, roster
+├── admin/              dashboard, students, courses, roster, custom domain
 ├── student/            dashboard, course browsing, course player
 ├── App.jsx             routing and guards
-└── styles.css          brand tokens and all styling
+└── styles/             tokens.css, layout.css, components.css, responsive.css
 ```
 
 ## How the API client works
@@ -68,12 +68,11 @@ ever builds a URL by hand.
 | Area | Endpoint | Used by |
 | --- | --- | --- |
 | Auth | `POST /auth/login` | Login |
-| Auth | `POST /auth/register` | Login |
 | Auth | `GET /auth/me` | Session restore |
-| Courses | `GET /courses/` | Admin courses, student courses, player |
+| Courses | `GET /courses` | Admin courses, student courses, player |
 | Courses | `POST /courses/{id}/publish` | Admin courses |
 | Courses | `POST /courses/{id}/archive` | Admin courses |
-| Chapters | `GET /courses/{id}/chapters/` | Course player, course builder |
+| Chapters | `GET /courses/{id}/chapters` | Course player, course builder |
 | Builder | `POST /admin/courses` | Admin courses |
 | Builder | `PUT /admin/courses/{id}` | Admin courses |
 | Builder | `DELETE /admin/courses/{id}` | Admin courses |
@@ -81,20 +80,26 @@ ever builds a URL by hand.
 | Access | `POST /admin/courses/{id}/access` | Access grid |
 | Access | `DELETE /admin/courses/{id}/access` | Access grid |
 | Admin | `GET /admin/dashboard` | Admin dashboard |
+| Admin | `GET /admin/departments` | Reference data cache (`api/referenceData.js`) |
+| Admin | `GET /admin/roles` | Reference data cache (`api/referenceData.js`) |
 | Admin | `GET /admin/students` | Admin students |
 | Admin | `GET /admin/students/{id}/progress` | Student drawer |
 | Admin | `GET /admin/courses/{id}/students` | Course roster |
 | Admin | `PATCH /admin/users/{id}/access-profile` | Student drawer |
+| Admin | `GET/POST/DELETE /admin/organisation/domain` | Custom domain settings |
+| Admin | `POST /admin/organisation/domain/verify` | Custom domain settings |
 | Learning | `GET /learning/courses/{id}/continue` | Course player |
 | Learning | `GET /learning/courses/{id}/progress` | Course player |
 | Progress | `POST /progress/complete` | Course player |
 | Student | `GET /me/dashboard` | Student dashboard, course list |
 
-Not yet wired: `GET /admin/departments`, `GET /admin/roles`,
-`GET /courses/{id}/chapters/{chapterId}`, `GET /progress/me`. The department and
-seniority lists are currently mirrored as constants in `endpoints.js`; if you
-add values to `app/constants.py`, either update that constant or switch those
-two selects over to the live endpoints.
+Not yet wired: `GET /courses/{id}/chapters/{chapterId}`, `GET /progress/me`.
+
+Department and seniority lists are fetched once per session from
+`GET /admin/departments` and `GET /admin/roles` (both open to any signed-in
+user, not just admins, since every account needs to resolve its own
+department label) and cached in `api/referenceData.js`. Add a value in
+`app/constants.py` and it shows up everywhere without a frontend change.
 
 ## Backend details the client depends on
 
@@ -103,9 +108,7 @@ A few of these are easy to break accidentally:
 - **Login is form-encoded, not JSON.** `OAuth2PasswordRequestForm` expects
   `application/x-www-form-urlencoded`, and the email goes in the `username`
   field.
-- **Trailing slashes are load-bearing.** `/courses/` and
-  `/courses/{id}/chapters/` have one; `/admin/courses` and
-  `/admin/courses/{id}/access` do not. A mismatch causes a 307 redirect that
+- **No route uses a trailing slash.** A mismatch causes a 307 redirect that
   drops the `Authorization` header.
 - **Revoking access is a `DELETE` with a JSON body**, matching
   `GrantAccessRequest`.

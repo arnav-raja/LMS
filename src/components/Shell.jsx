@@ -7,12 +7,14 @@ import {
   GraduationCap,
   ClipboardList,
   Award,
+  Globe,
   PanelLeftClose,
   PanelLeftOpen,
   LogOut,
 } from "lucide-react";
 import { useAuth } from "../auth/AuthContext";
-import { departmentLabel } from "../api/endpoints";
+import { departmentLabel, loadReferenceData } from "../api/referenceData";
+import { useAsync } from "../api/useAsync";
 import crest from "../assets/crest.png";
 import wordmark from "../assets/wordmark.png";
 
@@ -22,6 +24,7 @@ const ADMIN_LINKS = [
   { to: "/admin/courses", label: "Courses", icon: BookOpen },
   { to: "/admin/quizzes", label: "Quizzes", icon: ClipboardList },
   { to: "/admin/certificates", label: "Certificates", icon: Award },
+  { to: "/admin/domain", label: "Custom Domain", icon: Globe },
 ];
 
 const STUDENT_LINKS = [
@@ -36,6 +39,10 @@ const COLLAPSE_KEY = "arnav.sidebarCollapsed";
 export default function Shell() {
   const { user, isAdmin, logout } = useAuth();
   const links = isAdmin ? ADMIN_LINKS : STUDENT_LINKS;
+
+  // Populates the department/seniority label cache; re-renders this component
+  // once it lands so the sidebar's own-department label resolves properly.
+  useAsync(loadReferenceData, []);
 
   const [collapsed, setCollapsed] = useState(() => {
     try {

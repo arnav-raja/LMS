@@ -1,5 +1,6 @@
 import { useNavigate, useParams } from "react-router-dom";
-import { adminApi, departmentLabel } from "../api/endpoints";
+import { adminApi } from "../api/endpoints";
+import { departmentLabel, loadReferenceData } from "../api/referenceData";
 import { useAsync } from "../api/useAsync";
 import { EmptyState, ErrorPanel, Loading, PageTitle, ProgressBar } from "../components/ui";
 
@@ -19,6 +20,7 @@ export default function AdminCourseRoster() {
     () => adminApi.courseRoster(courseId),
     [courseId]
   );
+  useAsync(loadReferenceData, []);
 
   if (loading) return <Loading label="Loading roster" />;
 

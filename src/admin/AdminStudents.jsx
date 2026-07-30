@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { DEPARTMENTS, SENIORITIES, adminApi, departmentLabel } from "../api/endpoints";
+import { adminApi } from "../api/endpoints";
+import { departmentLabel, loadReferenceData } from "../api/referenceData";
 import { useAsync } from "../api/useAsync";
 import {
   Button,
@@ -46,6 +47,9 @@ function StudentForm({ student, onClose, onSaved }) {
   );
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
+  const { data: reference } = useAsync(loadReferenceData, []);
+  const departments = reference?.departments || [];
+  const seniorities = reference?.seniorities || [];
 
   const set = (field) => (e) => setForm({ ...form, [field]: e.target.value });
 
@@ -150,7 +154,7 @@ function StudentForm({ student, onClose, onSaved }) {
         onChange={set("department")}
       >
         <option value="">Not set</option>
-        {DEPARTMENTS.map((d) => (
+        {departments.map((d) => (
           <option key={d.code} value={d.code}>
             {d.label}
           </option>
@@ -167,7 +171,7 @@ function StudentForm({ student, onClose, onSaved }) {
         onChange={set("seniority")}
       >
         <option value="">Not set</option>
-        {SENIORITIES.map((s) => (
+        {seniorities.map((s) => (
           <option key={s} value={s}>
             {s}
           </option>
@@ -285,6 +289,8 @@ function StudentDetail({ record, onClose, onChanged }) {
 
 export default function AdminStudents() {
   const { data, loading, error, reload } = useAsync(() => adminApi.users(), []);
+  const { data: reference } = useAsync(loadReferenceData, []);
+  const departments = reference?.departments || [];
   const [filter, setFilter] = useState("ALL");
   const [selected, setSelected] = useState(null); // the account row whose detail is open
   const [creating, setCreating] = useState(false);
@@ -327,7 +333,7 @@ export default function AdminStudents() {
             >
               All
             </button>
-            {DEPARTMENTS.map((d) => (
+            {departments.map((d) => (
               <button
                 key={d.code}
                 className={`chip ${filter === d.code ? "chip-active" : ""}`}

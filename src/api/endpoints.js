@@ -1,9 +1,8 @@
 import { api, request } from "./client";
 
 /*
- * One function per backend route. Trailing slashes are deliberate and match
- * the FastAPI router definitions exactly — /courses/ has one, /admin/courses
- * does not. Getting these wrong causes a redirect that drops the auth header.
+ * One function per backend route. No route uses a trailing slash — keep it
+ * that way, since a mismatch causes a 307 redirect that drops the auth header.
  */
 
 /* ---------------------------------------------------------------- auth --- */
@@ -26,13 +25,13 @@ export const authApi = {
 export const courseApi = {
   // Admins receive every course; students receive only what their
   // department and seniority grants them.
-  list: () => api.get("/courses/"),
+  list: () => api.get("/courses"),
 
   publish: (courseId) => api.post(`/courses/${courseId}/publish`),
 
   archive: (courseId) => api.post(`/courses/${courseId}/archive`),
 
-  chapters: (courseId) => api.get(`/courses/${courseId}/chapters/`),
+  chapters: (courseId) => api.get(`/courses/${courseId}/chapters`),
 
   chapter: (courseId, chapterId) => api.get(`/courses/${courseId}/chapters/${chapterId}`),
 };
@@ -152,21 +151,5 @@ export const certificateApi = {
     api.get(courseId ? `/admin/certificates?course_id=${courseId}` : "/admin/certificates"),
 };
 
-/* ----------------------------------------------------------- constants --- */
-
-export const DEPARTMENTS = [
-  { code: "CR", label: "Customer Relations" },
-  { code: "DE", label: "Design" },
-  { code: "EC", label: "E-Commerce" },
-  { code: "FI", label: "Finance" },
-  { code: "HR", label: "Human Resources" },
-  { code: "IN", label: "Inventory" },
-  { code: "MK", label: "Marketing" },
-  { code: "OP", label: "Operations" },
-  { code: "SA", label: "Sales" },
-];
-
-export const SENIORITIES = ["Manager", "Senior", "Mid", "Junior"];
-
-export const departmentLabel = (code) =>
-  DEPARTMENTS.find((d) => d.code === code)?.label || code || "Unassigned";
+// Department and seniority lists are fetched live — see api/referenceData.js
+// — instead of being duplicated here as hardcoded constants.

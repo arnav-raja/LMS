@@ -1,13 +1,12 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-  DEPARTMENTS,
-  SENIORITIES,
   accessApi,
   adminApi,
   courseApi,
   courseBuilderApi,
 } from "../api/endpoints";
+import { loadReferenceData } from "../api/referenceData";
 import { useAsync } from "../api/useAsync";
 import {
   Button,
@@ -257,9 +256,12 @@ function CourseBuilder({ course, onClose, onSaved }) {
 
 function AccessEditor({ course, onClose }) {
   const { data, loading, error, reload } = useAsync(() => accessApi.list(course.id), [course.id]);
+  const { data: reference } = useAsync(loadReferenceData, []);
   const [pending, setPending] = useState(null);
   const [saveError, setSaveError] = useState(null);
 
+  const departments = reference?.departments || [];
+  const seniorities = reference?.seniorities || [];
   const rules = data || [];
   const granted = (dept, sen) =>
     rules.some((r) => r.department === dept && r.seniority === sen);
@@ -295,16 +297,16 @@ function AccessEditor({ course, onClose }) {
       {!loading && !error && (
         <div className="access-grid">
           <div className="access-grid-corner" />
-          {SENIORITIES.map((s) => (
+          {seniorities.map((s) => (
             <div key={s} className="access-col-label">
               {s}
             </div>
           ))}
 
-          {DEPARTMENTS.map((d) => (
+          {departments.map((d) => (
             <div className="access-row" key={d.code}>
               <div className="access-row-label">{d.label}</div>
-              {SENIORITIES.map((s) => {
+              {seniorities.map((s) => {
                 const on = granted(d.code, s);
                 const busy = pending === `${d.code}-${s}`;
                 return (

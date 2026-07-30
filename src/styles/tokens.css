@@ -1,0 +1,53 @@
+:root {
+  --ivory: #efeae4;
+  --parchment: #e3d8cc;
+  --champagne: #e6d3a3;
+  --gold: #c9a13b;
+  --bronze: #6b4f3a;
+  --ink: #0f0f0f;
+  --charcoal: #2a2a2a;
+  --slate: #afafb4;
+  --stone: #8c8c8c;
+  --white: #ffffff;
+
+  --font-display: "Inter", system-ui, -apple-system, sans-serif;
+  --font-body: "Inter", system-ui, -apple-system, sans-serif;
+  --font-ui: "Inter", system-ui, -apple-system, sans-serif;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--ivory);
+  color: var(--ink);
+  font-family: var(--font-body);
+  -webkit-font-smoothing: antialiased;
+}
+
+button {
+  font-family: var(--font-ui);
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+a {
+  color: var(--bronze);
+}
+
+:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 2px;
+}
+
+.muted {
+  color: var(--stone);
+}
