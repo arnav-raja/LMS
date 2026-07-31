@@ -1,5 +1,7 @@
 from fastapi import APIRouter
 from fastapi import Depends
+from fastapi import HTTPException
+from fastapi import Response
 
 from sqlalchemy.orm import Session
 
@@ -13,8 +15,11 @@ from app.models.user import User
 from app.schemas.certificate import CertificateRegistryItem
 from app.schemas.certificate import CertificateResponse
 
+from app.services.certificate_service import get_certificate_by_id
 from app.services.certificate_service import get_user_certificates
 from app.services.certificate_service import list_all_certificates
+from app.services.certificate_service import render_certificate_pdf
+from app.services.certificate_service import render_certificate_png
 
 
 router = APIRouter(tags=["Certificates"])
@@ -37,6 +42,53 @@ def my_certificates(
         }
         for certificate in certificates
     ]
+
+
+@router.get("/certificates/{certificate_id}/download")
+def download_certificate(
+    certificate_id: int,
+    format: str = "pdf",
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    if format not in ("pdf", "png"):
+        raise HTTPException(
+            status_code=400,
+            detail="format must be 'pdf' or 'png'"
+        )
+
+    certificate = get_certificate_by_id(db, certificate_id)
+
+    if certificate is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Certificate not found"
+        )
+
+    # A student may only download their own certificate; an admin may
+    # download any of them.
+    if current_user.role != "admin" and certificate.user_id != current_user.id:
+        raise HTTPException(
+            status_code=403,
+            detail="Not authorised to download this certificate"
+        )
+
+    if format == "pdf":
+        content = render_certificate_pdf(certificate)
+        media_type = "application/pdf"
+    else:
+        content = render_certificate_png(certificate)
+        media_type = "image/png"
+
+    filename = f"arnav-certificate-{certificate.certificate_number}.{format}"
+
+    return Response(
+        content=content,
+        media_type=media_type,
+        headers={
+            "Content-Disposition": f'attachment; filename="{filename}"'
+        }
+    )
 
 
 @router.get(

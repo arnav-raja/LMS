@@ -3,8 +3,17 @@ FROM python:3.12-slim
 WORKDIR /app
 
 # psycopg2 needs these to build against the system Postgres client library.
+# weasyprint needs pango/cairo/gdk-pixbuf to render the certificate PDF;
+# poppler-utils is what pdf2image shells out to for the PNG download.
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends gcc libpq-dev \
+    && apt-get install -y --no-install-recommends \
+        gcc \
+        libpq-dev \
+        libpango-1.0-0 \
+        libpangocairo-1.0-0 \
+        libgdk-pixbuf2.0-0 \
+        libffi-dev \
+        poppler-utils \
     && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt .

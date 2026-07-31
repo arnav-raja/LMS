@@ -82,6 +82,14 @@ traffic, and take 30–60 seconds to wake back up on the next request. That's
 normal, not a bug — worth knowing so the first request after a quiet period
 doesn't look broken.
 
+**Certificate downloads note:** rendering a certificate uses `weasyprint`,
+which needs system libraries (`pango`, `cairo`, `gdk-pixbuf`) that a plain
+`pip install` on Render's native Python runtime won't provide. Deploy the
+backend as a **Docker** web service on Render instead of the native runtime
+above — pick **Docker** as the environment when creating the service, and
+Render will build the included `Dockerfile`, which already installs
+everything the certificate renderer and `pdf2image` need.
+
 ## Part 3 — Deploy The Frontend
 
 We'll use **Vercel** (vercel.com) — same GitHub-based flow.
