@@ -9,8 +9,7 @@ A Web-Based Learning Management System API built using FastAPI and PostgreSQL.
 - Course, chapter, and subchapter management
 - Mandatory per-chapter quizzes
 - Learning progress tracking, with server-enforced sequencing
-- Automatic certificate issuance on course completion, downloadable as a
-  branded PDF or image
+- Automatic certificate issuance on course completion
 - Department/seniority-based course access rules
 - Admin dashboard and student roster views
 

@@ -1,15 +1,4 @@
-from io import BytesIO
-from pathlib import Path
-
-from jinja2 import Environment
-from jinja2 import FileSystemLoader
-
 from sqlalchemy.orm import Session
-from sqlalchemy.orm import joinedload
-
-from weasyprint import HTML
-
-from pdf2image import convert_from_bytes
 
 from app.models.certificate import Certificate
 from app.models.chapter import Chapter
@@ -18,13 +7,6 @@ from app.models.quiz import QuizAttempt
 from app.models.subchapter import Subchapter
 
 from app.services.progress_service import get_completed_subchapter_ids
-
-
-TEMPLATES_DIR = Path(__file__).resolve().parent.parent / "templates"
-
-_jinja_env = Environment(
-    loader=FileSystemLoader(TEMPLATES_DIR)
-)
 
 
 def is_course_complete(
@@ -146,50 +128,3 @@ def list_all_certificates(
     return query.order_by(Certificate.issued_at.desc()).all()
 
 
-def get_certificate_by_id(
-    db: Session,
-    certificate_id: int
-) -> Certificate | None:
-    return (
-        db.query(Certificate)
-        .options(
-            joinedload(Certificate.user),
-            joinedload(Certificate.course)
-        )
-        .filter(Certificate.id == certificate_id)
-        .first()
-    )
-
-
-def _render_certificate_html(certificate: Certificate) -> str:
-    """Fills the single certificate template with this certificate's own
-    student name and course title — the same template renders every
-    certificate ever issued, so there is nothing else to keep in sync."""
-    template = _jinja_env.get_template("certificate.html")
-
-    return template.render(
-        student_name=certificate.user.name,
-        course_title=certificate.course.title,
-        issued_at=certificate.issued_at.strftime("%d %B %Y"),
-        certificate_number=certificate.certificate_number
-    )
-
-
-def render_certificate_pdf(certificate: Certificate) -> bytes:
-    html = _render_certificate_html(certificate)
-
-    return HTML(string=html).write_pdf()
-
-
-def render_certificate_png(certificate: Certificate) -> bytes:
-    """Renders the same PDF as render_certificate_pdf, then rasterises its
-    single page to PNG, so the PDF and image downloads can never drift
-    apart in layout."""
-    pdf_bytes = render_certificate_pdf(certificate)
-
-    pages = convert_from_bytes(pdf_bytes, dpi=200)
-
-    buffer = BytesIO()
-    pages[0].save(buffer, format="PNG")
-
-    return buffer.getvalue()
