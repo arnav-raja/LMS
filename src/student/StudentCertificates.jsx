@@ -44,7 +44,7 @@ function CertificateDownloads({ certificateId }) {
           disabled={pending !== null}
           onClick={() => download("png")}
         >
-          {pending === "png" ? "Preparing…" : "Download image"}
+          {pending === "png" ? "Preparing…" : "Download PNG"}
         </button>
       </div>
       {error && (
