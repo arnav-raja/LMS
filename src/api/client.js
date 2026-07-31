@@ -124,42 +124,4 @@ export const api = {
   delete: (path, body, options) => request(path, { ...options, method: "DELETE", body }),
 };
 
-/**
- * Fetches a binary file (certificate PDF or PNG) with the auth header
- * attached, then hands the browser a real file to save — a plain <a href>
- * can't carry the Authorization header a protected route needs.
- */
-export async function downloadFile(path) {
-  const token = getToken();
-  const headers = {};
-  if (token) headers["Authorization"] = `Bearer ${token}`;
-
-  let response;
-  try {
-    response = await fetch(`${BASE_URL}${path}`, { headers });
-  } catch {
-    throw new ApiError(0, "Cannot reach the server. Check that the API is running.");
-  }
-
-  if (!response.ok) {
-    const data = await parseResponse(response);
-    throw new ApiError(response.status, readDetail(data, response.status));
-  }
-
-  const blob = await response.blob();
-
-  const disposition = response.headers.get("Content-Disposition") || "";
-  const match = disposition.match(/filename="?([^"]+)"?/);
-  const filename = match ? match[1] : "download";
-
-  const url = window.URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = filename;
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
-  window.URL.revokeObjectURL(url);
-}
-
 export { BASE_URL };
