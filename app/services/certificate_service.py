@@ -10,6 +10,7 @@ from sqlalchemy.orm import joinedload
 from weasyprint import HTML
 
 from pdf2image import convert_from_bytes
+from PIL import Image
 
 from app.models.certificate import Certificate
 from app.models.chapter import Chapter
@@ -182,14 +183,36 @@ def render_certificate_pdf(certificate: Certificate) -> bytes:
 
 
 def render_certificate_png(certificate: Certificate) -> bytes:
-    """Renders the same PDF as render_certificate_pdf, then rasterises its
-    single page to PNG, so the PDF and image downloads can never drift
-    apart in layout."""
+    """Renders the same PDF as render_certificate_pdf, then rasterises it
+    to PNG, so the PDF and image downloads can never drift apart in
+    layout.
+
+    The certificate template uses an auto-height page, so it should
+    always render as a single PDF page. As a defensive measure (e.g. an
+    unusually long student name or course title), if WeasyPrint still
+    produces more than one page, all pages are stitched together
+    vertically rather than silently dropping everything after the first
+    page, which previously cut off the signature block whenever the
+    content overflowed."""
     pdf_bytes = render_certificate_pdf(certificate)
 
     pages = convert_from_bytes(pdf_bytes, dpi=200)
 
+    if len(pages) == 1:
+        buffer = BytesIO()
+        pages[0].save(buffer, format="PNG")
+        return buffer.getvalue()
+
+    width = max(page.width for page in pages)
+    total_height = sum(page.height for page in pages)
+
+    stitched = Image.new("RGB", (width, total_height), "white")
+    y_offset = 0
+    for page in pages:
+        stitched.paste(page, (0, y_offset))
+        y_offset += page.height
+
     buffer = BytesIO()
-    pages[0].save(buffer, format="PNG")
+    stitched.save(buffer, format="PNG")
 
     return buffer.getvalue()
