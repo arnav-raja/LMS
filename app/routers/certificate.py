@@ -86,7 +86,9 @@ def download_certificate(
         content=content,
         media_type=media_type,
         headers={
-            "Content-Disposition": f'attachment; filename="{filename}"'
+            "Content-Disposition": f'attachment; filename="{filename}"',
+            "Cache-Control": "no-store, no-cache, must-revalidate",
+            "Pragma": "no-cache"
         }
     )
 
