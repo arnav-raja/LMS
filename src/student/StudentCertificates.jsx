@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Award } from "lucide-react";
 import { certificateApi } from "../api/endpoints";
 import { useAsync } from "../api/useAsync";
@@ -11,6 +12,49 @@ const formatDate = (value) => {
     year: "numeric",
   });
 };
+
+function CertificateDownloads({ certificateId }) {
+  const [pending, setPending] = useState(null);
+  const [error, setError] = useState(null);
+
+  const download = async (format) => {
+    setPending(format);
+    setError(null);
+    try {
+      await certificateApi.download(certificateId, format);
+    } catch (err) {
+      setError(err.detail || "Couldn't download the certificate.");
+    } finally {
+      setPending(null);
+    }
+  };
+
+  return (
+    <div>
+      <div className="chip-row" style={{ marginTop: 12 }}>
+        <button
+          className="btn btn-ghost btn-small"
+          disabled={pending !== null}
+          onClick={() => download("pdf")}
+        >
+          {pending === "pdf" ? "Preparing…" : "Download PDF"}
+        </button>
+        <button
+          className="btn btn-ghost btn-small"
+          disabled={pending !== null}
+          onClick={() => download("png")}
+        >
+          {pending === "png" ? "Preparing…" : "Download image"}
+        </button>
+      </div>
+      {error && (
+        <div className="muted" style={{ marginTop: 6, color: "var(--danger, #b34141)" }}>
+          {error}
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function StudentCertificates() {
   const { data: certificates, loading, error, reload } = useAsync(
@@ -48,6 +92,7 @@ export default function StudentCertificates() {
               <div className="course-card-next muted">
                 Issued {formatDate(certificate.issued_at)}
               </div>
+              <CertificateDownloads certificateId={certificate.id} />
             </div>
           ))}
         </div>

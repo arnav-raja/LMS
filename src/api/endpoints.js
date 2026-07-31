@@ -1,4 +1,4 @@
-import { api, request } from "./client";
+import { api, downloadFile, request } from "./client";
 
 /*
  * One function per backend route. No route uses a trailing slash — keep it
@@ -136,6 +136,11 @@ export const certificateApi = {
 
   all: (courseId) =>
     api.get(courseId ? `/admin/certificates?course_id=${courseId}` : "/admin/certificates"),
+
+  // Triggers a real browser download of the certificate — format is
+  // "pdf" or "png". No return value; the file save happens as a side effect.
+  download: (certificateId, format) =>
+    downloadFile(`/certificates/${certificateId}/download?format=${format}`),
 };
 
 // Department and seniority lists are fetched live — see api/referenceData.js

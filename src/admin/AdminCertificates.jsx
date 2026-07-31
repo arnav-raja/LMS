@@ -12,6 +12,41 @@ const formatDate = (value) => {
   });
 };
 
+function CertificateDownloadCell({ certificateId }) {
+  const [pending, setPending] = useState(null);
+
+  const download = async (format) => {
+    setPending(format);
+    try {
+      await certificateApi.download(certificateId, format);
+    } catch {
+      // The row stays put; the student can be told to try again if it
+      // keeps failing — no need to disrupt the whole registry over it.
+    } finally {
+      setPending(null);
+    }
+  };
+
+  return (
+    <div className="chip-row">
+      <button
+        className="btn btn-ghost btn-small"
+        disabled={pending !== null}
+        onClick={() => download("pdf")}
+      >
+        {pending === "pdf" ? "…" : "PDF"}
+      </button>
+      <button
+        className="btn btn-ghost btn-small"
+        disabled={pending !== null}
+        onClick={() => download("png")}
+      >
+        {pending === "png" ? "…" : "Image"}
+      </button>
+    </div>
+  );
+}
+
 export default function AdminCertificates() {
   const [courseFilter, setCourseFilter] = useState("");
   const [search, setSearch] = useState("");
@@ -82,6 +117,7 @@ export default function AdminCertificates() {
                 <th>Course</th>
                 <th>Certificate number</th>
                 <th>Issued</th>
+                <th>Download</th>
               </tr>
             </thead>
             <tbody>
@@ -94,6 +130,9 @@ export default function AdminCertificates() {
                     <code>{certificate.certificate_number}</code>
                   </td>
                   <td className="muted">{formatDate(certificate.issued_at)}</td>
+                  <td>
+                    <CertificateDownloadCell certificateId={certificate.id} />
+                  </td>
                 </tr>
               ))}
             </tbody>
