@@ -126,5 +126,3 @@ def list_all_certificates(
         query = query.filter(Certificate.course_id == course_id)
 
     return query.order_by(Certificate.issued_at.desc()).all()
-
-
