@@ -9,9 +9,6 @@ class DashboardResponse(BaseModel):
     total_students: int
     published_courses: int
     draft_courses: int
-    students_without_access: int
-    average_completion_percentage: float
-    completions_last_7_days: int
 
 
 class UserAccessProfileUpdate(BaseModel):
