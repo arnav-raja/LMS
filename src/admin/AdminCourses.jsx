@@ -254,10 +254,16 @@ function CourseBuilder({ course, onClose, onSaved }) {
   );
 }
 
+// "Manager" is the one seniority that means people-management, not tenure —
+// every other seniority (Senior/Mid/Junior) is grouped as "Employees" for
+// the bulk-access buttons below.
+const isManagerSeniority = (seniority) => seniority === "Manager";
+
 function AccessEditor({ course, onClose }) {
   const { data, loading, error, reload } = useAsync(() => accessApi.list(course.id), [course.id]);
   const { data: reference } = useAsync(loadReferenceData, []);
   const [pending, setPending] = useState(null);
+  const [bulkPending, setBulkPending] = useState(null);
   const [saveError, setSaveError] = useState(null);
 
   const departments = reference?.departments || [];
@@ -265,6 +271,12 @@ function AccessEditor({ course, onClose }) {
   const rules = data || [];
   const granted = (dept, sen) =>
     rules.some((r) => r.department === dept && r.seniority === sen);
+
+  // A bulk toggle touches every cell, so it excludes individual edits and
+  // vice versa; individual cells otherwise stay independently clickable,
+  // same as before the bulk buttons existed.
+  const anyBulkPending = bulkPending !== null;
+  const anyPending = pending !== null || anyBulkPending;
 
   const toggle = async (dept, sen) => {
     const key = `${dept}-${sen}`;
@@ -278,6 +290,30 @@ function AccessEditor({ course, onClose }) {
       setSaveError(err.message);
     } finally {
       setPending(null);
+    }
+  };
+
+  const managerPairs = departments.map((d) => [d.code, "Manager"]);
+  const employeePairs = departments.flatMap((d) =>
+    seniorities.filter((s) => !isManagerSeniority(s)).map((s) => [d.code, s])
+  );
+  const allGranted = (pairs) => pairs.length > 0 && pairs.every(([d, s]) => granted(d, s));
+
+  const toggleGroup = async (key, pairs) => {
+    setBulkPending(key);
+    setSaveError(null);
+    const shouldGrant = !allGranted(pairs);
+    try {
+      await Promise.all(
+        pairs.map(([dept, sen]) =>
+          shouldGrant ? accessApi.grant(course.id, dept, sen) : accessApi.revoke(course.id, dept, sen)
+        )
+      );
+      reload();
+    } catch (err) {
+      setSaveError(err.message);
+    } finally {
+      setBulkPending(null);
     }
   };
 
@@ -295,34 +331,58 @@ function AccessEditor({ course, onClose }) {
       {saveError && <div className="form-error">{saveError}</div>}
 
       {!loading && !error && (
-        <div className="access-grid">
-          <div className="access-grid-corner" />
-          {seniorities.map((s) => (
-            <div key={s} className="access-col-label">
-              {s}
-            </div>
-          ))}
+        <>
+          <div className="chip-row">
+            <button
+              type="button"
+              className={`chip ${allGranted(managerPairs) ? "chip-active" : ""}`}
+              onClick={() => toggleGroup("managers", managerPairs)}
+              disabled={anyPending}
+              aria-pressed={allGranted(managerPairs)}
+            >
+              {bulkPending === "managers" ? "Updating…" : "Managers"}
+            </button>
+            <button
+              type="button"
+              className={`chip ${allGranted(employeePairs) ? "chip-active" : ""}`}
+              onClick={() => toggleGroup("employees", employeePairs)}
+              disabled={anyPending}
+              aria-pressed={allGranted(employeePairs)}
+            >
+              {bulkPending === "employees" ? "Updating…" : "Employees"}
+            </button>
+          </div>
 
-          {departments.map((d) => (
-            <div className="access-row" key={d.code}>
-              <div className="access-row-label">{d.label}</div>
-              {seniorities.map((s) => {
-                const on = granted(d.code, s);
-                const busy = pending === `${d.code}-${s}`;
-                return (
-                  <button
-                    key={s}
-                    className={`access-cell ${on ? "access-cell-on" : ""} ${busy ? "access-cell-busy" : ""}`}
-                    onClick={() => toggle(d.code, s)}
-                    disabled={busy}
-                    aria-pressed={on}
-                    aria-label={`${on ? "Revoke" : "Grant"} ${d.label} ${s}`}
-                  />
-                );
-              })}
-            </div>
-          ))}
-        </div>
+          <div className="access-grid">
+            <div className="access-grid-corner" />
+            {seniorities.map((s) => (
+              <div key={s} className="access-col-label">
+                {s}
+              </div>
+            ))}
+
+            {departments.map((d) => (
+              <div className="access-row" key={d.code}>
+                <div className="access-row-label">{d.label}</div>
+                {seniorities.map((s) => {
+                  const on = granted(d.code, s);
+                  const cellKey = `${d.code}-${s}`;
+                  const cellBusy = pending === cellKey;
+                  return (
+                    <button
+                      key={s}
+                      className={`access-cell ${on ? "access-cell-on" : ""} ${cellBusy ? "access-cell-busy" : ""}`}
+                      onClick={() => toggle(d.code, s)}
+                      disabled={cellBusy || anyBulkPending}
+                      aria-pressed={on}
+                      aria-label={`${on ? "Revoke" : "Grant"} ${d.label} ${s}`}
+                    />
+                  );
+                })}
+              </div>
+            ))}
+          </div>
+        </>
       )}
     </Modal>
   );
