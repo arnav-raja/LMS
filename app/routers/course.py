@@ -30,7 +30,7 @@ def list_courses(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    if current_user.role == "admin":
+    if current_user.is_admin:
         return get_courses(db)
 
     return get_accessible_courses(db, current_user)

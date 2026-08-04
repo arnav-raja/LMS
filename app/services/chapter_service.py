@@ -83,7 +83,7 @@ def get_course_chapters_for_user(
 ):
     chapters = get_course_chapters(db, course_id)
     lock_map = get_subchapter_lock_map(db, user.id, course_id)
-    bypass_lock = user.role == "admin"
+    bypass_lock = user.is_admin
 
     return [
         serialize_chapter(db, chapter, lock_map, bypass_lock, user.id)
@@ -97,6 +97,6 @@ def get_chapter_for_user(
     user: User
 ):
     lock_map = get_subchapter_lock_map(db, user.id, chapter.course_id)
-    bypass_lock = user.role == "admin"
+    bypass_lock = user.is_admin
 
     return serialize_chapter(db, chapter, lock_map, bypass_lock, user.id)

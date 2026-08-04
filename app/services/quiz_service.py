@@ -303,7 +303,7 @@ def get_quiz_take_view(
     chapter = quiz.chapter
     course_id = chapter.course_id
 
-    if user.role != "admin":
+    if not user.is_admin:
         if not user_has_access(db, user, course_id):
             return None, "locked"
 

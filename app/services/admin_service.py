@@ -2,7 +2,6 @@ from sqlalchemy.orm import Session
 
 from app.models.user import User
 from app.models.course import Course
-from app.models.course_access_rule import CourseAccessRule
 from app.models.progress import Progress
 
 from app.utils.security import hash_password

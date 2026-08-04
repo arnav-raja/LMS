@@ -78,7 +78,7 @@ def user_has_access(
     user: User,
     course_id: int
 ) -> bool:
-    if user.role == "admin":
+    if user.is_admin:
         return True
 
     if not user.department or not user.seniority:
@@ -101,7 +101,7 @@ def get_accessible_courses(
     db: Session,
     user: User
 ):
-    if user.role == "admin":
+    if user.is_admin:
         return db.query(Course).all()
 
     if not user.department or not user.seniority:

@@ -67,3 +67,7 @@ class User(Base):
         String(50),
         nullable=True
     )
+
+    @property
+    def is_admin(self) -> bool:
+        return self.role == "admin"

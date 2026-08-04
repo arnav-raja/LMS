@@ -50,7 +50,7 @@ def complete(
             detail="You do not have access to this course"
         )
 
-    if current_user.role != "admin" and not is_subchapter_unlocked(
+    if not current_user.is_admin and not is_subchapter_unlocked(
         db,
         current_user.id,
         course_id,
