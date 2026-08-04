@@ -33,10 +33,6 @@ export function clearReferenceData() {
   pending = null;
 }
 
-export function getReferenceData() {
-  return cache;
-}
-
 export function departmentLabel(code) {
   return cache?.departments.find((d) => d.code === code)?.label || code || "Unassigned";
 }

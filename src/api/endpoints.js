@@ -32,8 +32,6 @@ export const courseApi = {
   archive: (courseId) => api.post(`/courses/${courseId}/archive`),
 
   chapters: (courseId) => api.get(`/courses/${courseId}/chapters`),
-
-  chapter: (courseId, chapterId) => api.get(`/courses/${courseId}/chapters/${chapterId}`),
 };
 
 /* ------------------------------------------------------ course builder --- */

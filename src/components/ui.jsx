@@ -1,6 +1,6 @@
 import crest from "../assets/crest.png";
 
-export function Eyebrow({ children }) {
+function Eyebrow({ children }) {
   return <div className="eyebrow">{children}</div>;
 }
 
@@ -126,16 +126,5 @@ export function Drawer({ title, eyebrow, meta, children, onClose }) {
         {children}
       </div>
     </div>
-  );
-}
-
-export function Field({ label, id, children }) {
-  return (
-    <>
-      <label className="field-label" htmlFor={id}>
-        {label}
-      </label>
-      {children}
-    </>
   );
 }

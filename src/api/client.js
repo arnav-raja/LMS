@@ -123,5 +123,3 @@ export const api = {
   patch: (path, body, options) => request(path, { ...options, method: "PATCH", body }),
   delete: (path, body, options) => request(path, { ...options, method: "DELETE", body }),
 };
-
-export { BASE_URL };
