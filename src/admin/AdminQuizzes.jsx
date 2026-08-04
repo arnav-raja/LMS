@@ -14,6 +14,74 @@ import {
 const blankOption = () => ({ option_text: "", is_correct: false });
 const blankQuestion = () => ({ question_text: "", options: [blankOption(), blankOption()] });
 
+function shuffleOptions(options) {
+  const shuffled = [...options];
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+  return shuffled;
+}
+
+/** Parses the "QuTi./QuTe./C./I." shorthand paste format into one or more
+ * quiz blocks. Each question's options are shuffled (Fisher-Yates) so the
+ * correct answer doesn't stay in whatever position it had in the source
+ * text (where "C." always comes first). Returns { blocks, error }. */
+function parseQuizPaste(text) {
+  const lines = text.split(/\r?\n/);
+  const blocks = [];
+  let currentBlock = null;
+  let currentQuestion = null;
+
+  for (const rawLine of lines) {
+    const line = rawLine.trim();
+    if (!line) continue;
+
+    const quTi = line.match(/^QuTi\.\s*(.*)$/);
+    const quTe = line.match(/^QuTe\.\s*(.*)$/);
+    const correct = line.match(/^C\.\s*(.*)$/);
+    const incorrect = line.match(/^I\.\s*(.*)$/);
+
+    if (quTi) {
+      currentBlock = { title: quTi[1].trim(), questions: [] };
+      blocks.push(currentBlock);
+      currentQuestion = null;
+    } else if (quTe) {
+      if (!currentBlock) {
+        currentBlock = { title: "", questions: [] };
+        blocks.push(currentBlock);
+      }
+      currentQuestion = { question_text: quTe[1].trim(), options: [] };
+      currentBlock.questions.push(currentQuestion);
+    } else if (correct && currentQuestion) {
+      currentQuestion.options.push({ option_text: correct[1].trim(), is_correct: true });
+    } else if (incorrect && currentQuestion) {
+      currentQuestion.options.push({ option_text: incorrect[1].trim(), is_correct: false });
+    }
+    // Any other line — including a stray C./I. before a QuTe. — has
+    // nothing sensible to attach to, so it's silently ignored.
+  }
+
+  const cleaned = blocks
+    .map((block) => ({
+      ...block,
+      questions: block.questions
+        .filter((q) => q.options.length > 0)
+        .map((q) => ({ ...q, options: shuffleOptions(q.options) })),
+    }))
+    .filter((block) => block.questions.length > 0);
+
+  if (cleaned.length === 0) {
+    return {
+      blocks: [],
+      error:
+        'Couldn\'t find any quiz content in that paste. Make sure it has "QuTi." and "QuTe." lines like the sample format.',
+    };
+  }
+
+  return { blocks: cleaned, error: null };
+}
+
 /** Builder for a single chapter's quiz — one course/chapter picked first,
  * then MCQ questions authored below with the correct option marked. */
 function QuizBuilder({ chapters, existingQuiz, defaultChapterId, onClose, onSaved }) {
@@ -35,6 +103,12 @@ function QuizBuilder({ chapters, existingQuiz, defaultChapterId, onClose, onSave
   );
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
+
+  const [pasteOpen, setPasteOpen] = useState(false);
+  const [pasteText, setPasteText] = useState("");
+  const [parsedBlocks, setParsedBlocks] = useState([]);
+  const [selectedBlockIndex, setSelectedBlockIndex] = useState(0);
+  const [pasteError, setPasteError] = useState(null);
 
   const editing = Boolean(existingQuiz);
 
@@ -61,6 +135,37 @@ function QuizBuilder({ chapters, existingQuiz, defaultChapterId, onClose, onSave
 
   const addQuestion = () => setQuestions([...questions, blankQuestion()]);
   const removeQuestion = (index) => setQuestions(questions.filter((_, i) => i !== index));
+
+  const applyBlock = (block) => {
+    if (!block) return;
+    setTitle(block.title);
+    setQuestions(
+      block.questions.length
+        ? block.questions.map((q) => ({
+            question_text: q.question_text,
+            options: q.options.map((o) => ({ ...o })),
+          }))
+        : [blankQuestion()]
+    );
+  };
+
+  const handleParsePaste = () => {
+    const { blocks, error: parseErr } = parseQuizPaste(pasteText);
+    if (parseErr) {
+      setPasteError(parseErr);
+      setParsedBlocks([]);
+      return;
+    }
+    setPasteError(null);
+    setParsedBlocks(blocks);
+    setSelectedBlockIndex(0);
+    applyBlock(blocks[0]);
+  };
+
+  const handleBlockPick = (index) => {
+    setSelectedBlockIndex(index);
+    applyBlock(parsedBlocks[index]);
+  };
 
   const addOption = (qIndex) =>
     setQuestions(
@@ -127,6 +232,61 @@ function QuizBuilder({ chapters, existingQuiz, defaultChapterId, onClose, onSave
       }
     >
       {error && <ErrorPanel error={error} />}
+
+      <button
+        type="button"
+        className="btn btn-ghost btn-small"
+        onClick={() => setPasteOpen(!pasteOpen)}
+      >
+        {pasteOpen ? "Hide paste from text" : "Paste from text"}
+      </button>
+
+      {pasteOpen && (
+        <div className="builder-spaced">
+          <label className="field-label" htmlFor="quiz-paste">
+            Paste "QuTi./QuTe./C./I." formatted text
+          </label>
+          <textarea
+            id="quiz-paste"
+            className="text-input textarea"
+            value={pasteText}
+            onChange={(e) => setPasteText(e.target.value)}
+            placeholder={"QuTi. Chapter 1 Quiz\n\nQuTe. Question text\nC. Correct option\nI. Incorrect option"}
+          />
+          <Button variant="ghost" onClick={handleParsePaste} disabled={!pasteText.trim()}>
+            Parse text
+          </Button>
+
+          {pasteError && <div className="form-error">{pasteError}</div>}
+
+          {parsedBlocks.length > 1 && (
+            <>
+              <label className="field-label" htmlFor="quiz-paste-block">
+                Which quiz block should fill this chapter's form?
+              </label>
+              <select
+                id="quiz-paste-block"
+                className="text-input"
+                value={selectedBlockIndex}
+                onChange={(e) => handleBlockPick(Number(e.target.value))}
+              >
+                {parsedBlocks.map((block, i) => (
+                  <option key={i} value={i}>
+                    {block.title || "(untitled quiz)"}
+                  </option>
+                ))}
+              </select>
+            </>
+          )}
+
+          {parsedBlocks.length > 0 && (
+            <p className="muted">
+              Found {parsedBlocks.length} quiz block{parsedBlocks.length === 1 ? "" : "s"}. Review
+              the fields below before saving.
+            </p>
+          )}
+        </div>
+      )}
 
       <label className="field-label" htmlFor="quiz-chapter">
         Chapter
