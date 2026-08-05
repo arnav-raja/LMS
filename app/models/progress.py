@@ -23,13 +23,15 @@ class Progress(Base):
     user_id = Column(
         Integer,
         ForeignKey("users.id"),
-        nullable=False
+        nullable=False,
+        index=True
     )
 
     subchapter_id = Column(
         Integer,
         ForeignKey("subchapters.id", ondelete="CASCADE"),
-        nullable=False
+        nullable=False,
+        index=True
     )
 
     is_completed = Column(

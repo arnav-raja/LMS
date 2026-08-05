@@ -21,7 +21,8 @@ class Chapter(Base):
     course_id = Column(
         Integer,
         ForeignKey("courses.id"),
-        nullable=False
+        nullable=False,
+        index=True
     )
 
     chapter_number = Column(

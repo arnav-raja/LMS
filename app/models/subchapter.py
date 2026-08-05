@@ -21,7 +21,8 @@ class Subchapter(Base):
     chapter_id = Column(
         Integer,
         ForeignKey("chapters.id"),
-        nullable=False
+        nullable=False,
+        index=True
     )
 
     subchapter_number = Column(

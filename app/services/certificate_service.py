@@ -15,51 +15,65 @@ def is_course_complete(
     course_id: int
 ) -> bool:
     """A course is complete once every chapter's subchapters are done and,
-    for any chapter with a mandatory quiz, that quiz has been passed."""
-    chapters = (
-        db.query(Chapter)
-        .filter(Chapter.course_id == course_id)
-        .all()
-    )
+    for any chapter with a mandatory quiz, that quiz has been passed.
 
-    if not chapters:
+    Loads every chapter's subchapters, quizzes, and the user's passed
+    attempts in one query each, rather than once per chapter — this is
+    called after every subchapter completion and quiz submission."""
+    chapter_ids = [
+        row.id
+        for row in (
+            db.query(Chapter.id)
+            .filter(Chapter.course_id == course_id)
+            .all()
+        )
+    ]
+
+    if not chapter_ids:
         return False
 
     completed_subchapter_ids = get_completed_subchapter_ids(db, user_id)
 
-    for chapter in chapters:
-        subchapter_ids = {
-            row.id
-            for row in (
-                db.query(Subchapter.id)
-                .filter(Subchapter.chapter_id == chapter.id)
-                .all()
-            )
-        }
+    subchapters_by_chapter: dict[int, set[int]] = {
+        chapter_id: set() for chapter_id in chapter_ids
+    }
+    for row in (
+        db.query(Subchapter.chapter_id, Subchapter.id)
+        .filter(Subchapter.chapter_id.in_(chapter_ids))
+        .all()
+    ):
+        subchapters_by_chapter[row.chapter_id].add(row.id)
 
-        if not subchapter_ids.issubset(completed_subchapter_ids):
+    quiz_by_chapter: dict[int, int] = {
+        row.chapter_id: row.id
+        for row in (
+            db.query(Quiz.chapter_id, Quiz.id)
+            .filter(Quiz.chapter_id.in_(chapter_ids))
+            .all()
+        )
+    }
+
+    passed_quiz_ids: set[int] = {
+        row.quiz_id
+        for row in (
+            db.query(QuizAttempt.quiz_id)
+            .filter(
+                QuizAttempt.quiz_id.in_(quiz_by_chapter.values()),
+                QuizAttempt.user_id == user_id,
+                QuizAttempt.passed == True
+            )
+            .all()
+        )
+    }
+
+    for chapter_id in chapter_ids:
+        if not subchapters_by_chapter[chapter_id].issubset(completed_subchapter_ids):
             return False
 
-        quiz = (
-            db.query(Quiz)
-            .filter(Quiz.chapter_id == chapter.id)
-            .first()
-        )
+        quiz_id = quiz_by_chapter.get(chapter_id)
 
-        if quiz is not None:
-            passed = (
-                db.query(QuizAttempt)
-                .filter(
-                    QuizAttempt.quiz_id == quiz.id,
-                    QuizAttempt.user_id == user_id,
-                    QuizAttempt.passed == True
-                )
-                .first()
-                is not None
-            )
-
-            if not passed:
-                return False
+        if quiz_id is not None and quiz_id not in passed_quiz_ids:
+            return False
 
     return True
 

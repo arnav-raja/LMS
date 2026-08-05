@@ -37,13 +37,15 @@ class Certificate(Base):
     user_id = Column(
         Integer,
         ForeignKey("users.id"),
-        nullable=False
+        nullable=False,
+        index=True
     )
 
     course_id = Column(
         Integer,
         ForeignKey("courses.id", ondelete="CASCADE"),
-        nullable=False
+        nullable=False,
+        index=True
     )
 
     # Publicly displayable proof-of-completion reference, independent of

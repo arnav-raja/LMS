@@ -73,7 +73,8 @@ class QuizQuestion(Base):
     quiz_id = Column(
         Integer,
         ForeignKey("quizzes.id", ondelete="CASCADE"),
-        nullable=False
+        nullable=False,
+        index=True
     )
 
     question_number = Column(
@@ -111,7 +112,8 @@ class QuizOption(Base):
     question_id = Column(
         Integer,
         ForeignKey("quiz_questions.id", ondelete="CASCADE"),
-        nullable=False
+        nullable=False,
+        index=True
     )
 
     option_text = Column(
@@ -143,13 +145,15 @@ class QuizAttempt(Base):
     user_id = Column(
         Integer,
         ForeignKey("users.id"),
-        nullable=False
+        nullable=False,
+        index=True
     )
 
     quiz_id = Column(
         Integer,
         ForeignKey("quizzes.id", ondelete="CASCADE"),
-        nullable=False
+        nullable=False,
+        index=True
     )
 
     score = Column(
@@ -196,13 +200,15 @@ class QuizAnswer(Base):
     attempt_id = Column(
         Integer,
         ForeignKey("quiz_attempts.id", ondelete="CASCADE"),
-        nullable=False
+        nullable=False,
+        index=True
     )
 
     question_id = Column(
         Integer,
         ForeignKey("quiz_questions.id", ondelete="CASCADE"),
-        nullable=False
+        nullable=False,
+        index=True
     )
 
     selected_option_id = Column(
