@@ -85,7 +85,7 @@ ever builds a URL by hand.
 | Admin | `GET /admin/students` | Admin students |
 | Admin | `GET /admin/students/{id}/progress` | Student drawer |
 | Admin | `GET /admin/courses/{id}/students` | Course roster |
-| Admin | `PATCH /admin/users/{id}/access-profile` | Student drawer |
+| Admin | `PATCH /admin/users/{id}` | Student editor |
 | Learning | `GET /learning/courses/{id}/continue` | Course player |
 | Learning | `GET /learning/courses/{id}/progress` | Course player |
 | Progress | `POST /progress/complete` | Course player |
