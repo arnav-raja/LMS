@@ -11,11 +11,6 @@ class DashboardResponse(BaseModel):
     draft_courses: int
 
 
-class UserAccessProfileUpdate(BaseModel):
-    department: Department
-    seniority: Seniority
-
-
 class DepartmentOption(BaseModel):
     code: Department
     label: str

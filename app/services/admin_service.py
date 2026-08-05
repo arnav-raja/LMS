@@ -87,7 +87,8 @@ def update_user(
     password: str | None,
     role: str | None,
     department: str | None,
-    seniority: str | None
+    seniority: str | None,
+    provided_fields: set[str]
 ):
     user = db.get(User, user_id)
 
@@ -99,8 +100,8 @@ def update_user(
             raise ValueError("Username already taken")
         user.username = username
 
-    if email is not None and email != user.email:
-        if db.query(User).filter(User.email == email).first():
+    if "email" in provided_fields and email != user.email:
+        if email and db.query(User).filter(User.email == email).first():
             raise ValueError("Email already registered")
         user.email = email
 
@@ -113,10 +114,10 @@ def update_user(
     if role is not None:
         user.role = role
 
-    if department is not None:
+    if "department" in provided_fields:
         user.department = department
 
-    if seniority is not None:
+    if "seniority" in provided_fields:
         user.seniority = seniority
 
     db.commit()
@@ -142,23 +143,3 @@ def delete_user(
     db.commit()
 
     return True
-
-
-def update_user_access_profile(
-    db: Session,
-    user_id: int,
-    department: str,
-    seniority: str
-):
-    user = db.get(User, user_id)
-
-    if user is None:
-        return None
-
-    user.department = department
-    user.seniority = seniority
-
-    db.commit()
-    db.refresh(user)
-
-    return user

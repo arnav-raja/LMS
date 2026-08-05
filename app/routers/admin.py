@@ -16,19 +16,15 @@ from app.constants import Seniority
 from app.schemas.admin import DashboardResponse
 from app.schemas.admin import DepartmentOption
 from app.schemas.admin import RoleOption
-from app.schemas.admin import UserAccessProfileUpdate
 from app.schemas.admin import UserListItem
 from app.schemas.admin import CreateUserRequest
 from app.schemas.admin import UpdateUserRequest
-
-from app.schemas.auth import UserResponse
 
 from app.schemas.tracking import CourseRosterResponse
 from app.schemas.tracking import StudentProgressResponse
 from app.schemas.tracking import StudentSummary
 
 from app.services.admin_service import get_dashboard
-from app.services.admin_service import update_user_access_profile
 from app.services.admin_service import list_all_users
 from app.services.admin_service import create_user
 from app.services.admin_service import update_user
@@ -94,7 +90,8 @@ def add_user(
             password=request.password,
             role=request.role,
             department=request.department.value if request.department else None,
-            seniority=request.seniority.value if request.seniority else None
+            seniority=request.seniority.value if request.seniority else None,
+            provided_fields=request.model_fields_set
         )
     except ValueError as error:
         raise HTTPException(status_code=400, detail=str(error))
@@ -153,29 +150,6 @@ def remove_user(
         raise HTTPException(status_code=404, detail="User not found")
 
     return {"deleted": True}
-
-
-@router.patch("/users/{user_id}/access-profile", response_model=UserResponse)
-def set_user_access_profile(
-    user_id: int,
-    request: UserAccessProfileUpdate,
-    current_user = Depends(require_admin),
-    db: Session = Depends(get_db)
-):
-    user = update_user_access_profile(
-        db=db,
-        user_id=user_id,
-        department=request.department.value,
-        seniority=request.seniority.value
-    )
-
-    if user is None:
-        raise HTTPException(
-            status_code=404,
-            detail="User not found"
-        )
-
-    return user
 
 
 @router.get("/students", response_model=list[StudentSummary])

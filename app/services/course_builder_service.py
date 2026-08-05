@@ -8,6 +8,34 @@ from app.models.progress import Progress
 from app.schemas.course_builder import CreateCourseRequest
 
 
+def _create_chapter(db: Session, course_id: int, chapter_number: int, chapter_data):
+    """Create one chapter and its ordered subchapters."""
+    chapter = Chapter(
+        course_id=course_id,
+        chapter_number=chapter_number,
+        title=chapter_data.title,
+        description=chapter_data.description,
+        num_subchapters=len(chapter_data.subchapters)
+    )
+    db.add(chapter)
+    db.flush()
+
+    for subchapter_number, subchapter_data in enumerate(
+        chapter_data.subchapters,
+        start=1
+    ):
+        db.add(
+            Subchapter(
+                chapter_id=chapter.id,
+                subchapter_number=subchapter_number,
+                title=subchapter_data.title,
+                content=subchapter_data.content
+            )
+        )
+
+    return chapter
+
+
 def create_course(
     db: Session,
     request: CreateCourseRequest
@@ -26,29 +54,7 @@ def create_course(
         request.chapters,
         start=1
     ):
-        chapter = Chapter(
-            course_id=course.id,
-            chapter_number=chapter_index,
-            title=chapter_data.title,
-            description=chapter_data.description,
-            num_subchapters=len(chapter_data.subchapters)
-        )
-
-        db.add(chapter)
-        db.flush()
-
-        for subchapter_index, subchapter_data in enumerate(
-            chapter_data.subchapters,
-            start=1
-        ):
-            subchapter = Subchapter(
-                chapter_id=chapter.id,
-                subchapter_number=subchapter_index,
-                title=subchapter_data.title,
-                content=subchapter_data.content
-            )
-
-            db.add(subchapter)
+        _create_chapter(db, course.id, chapter_index, chapter_data)
 
     db.commit()
     db.refresh(course)
@@ -206,16 +212,8 @@ def update_course(
         chapter = existing_chapters_by_number.get(chapter_index)
 
         if chapter is None:
-            chapter = Chapter(
-                course_id=course.id,
-                chapter_number=chapter_index,
-                title=chapter_data.title,
-                description=chapter_data.description,
-                num_subchapters=len(chapter_data.subchapters)
-            )
-
-            db.add(chapter)
-            db.flush()
+            _create_chapter(db, course.id, chapter_index, chapter_data)
+            continue
         else:
             chapter.title = chapter_data.title
             chapter.description = chapter_data.description
