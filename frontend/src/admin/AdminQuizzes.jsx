@@ -1,0 +1,608 @@
+import { useEffect, useState } from "react";
+import { courseApi, quizApi } from "../api/endpoints";
+import { useAsync } from "../api/useAsync";
+import {
+  Button,
+  Drawer,
+  EmptyState,
+  ErrorPanel,
+  Loading,
+  Modal,
+  PageTitle,
+} from "../components/ui";
+
+const blankOption = () => ({ option_text: "", is_correct: false });
+const blankQuestion = () => ({ question_text: "", options: [blankOption(), blankOption()] });
+
+function shuffleOptions(options) {
+  const shuffled = [...options];
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+  return shuffled;
+}
+
+/** Parses the "QuTi./QuTe./C./I." shorthand paste format into one or more
+ * quiz blocks. Each question's options are shuffled (Fisher-Yates) so the
+ * correct answer doesn't stay in whatever position it had in the source
+ * text (where "C." always comes first). Returns { blocks, error }. */
+function parseQuizPaste(text) {
+  const lines = text.split(/\r?\n/);
+  const blocks = [];
+  let currentBlock = null;
+  let currentQuestion = null;
+
+  for (const rawLine of lines) {
+    const line = rawLine.trim();
+    if (!line) continue;
+
+    const quTi = line.match(/^QuTi\.\s*(.*)$/);
+    const quTe = line.match(/^QuTe\.\s*(.*)$/);
+    const correct = line.match(/^C\.\s*(.*)$/);
+    const incorrect = line.match(/^I\.\s*(.*)$/);
+
+    if (quTi) {
+      currentBlock = { title: quTi[1].trim(), questions: [] };
+      blocks.push(currentBlock);
+      currentQuestion = null;
+    } else if (quTe) {
+      if (!currentBlock) {
+        currentBlock = { title: "", questions: [] };
+        blocks.push(currentBlock);
+      }
+      currentQuestion = { question_text: quTe[1].trim(), options: [] };
+      currentBlock.questions.push(currentQuestion);
+    } else if (correct && currentQuestion) {
+      currentQuestion.options.push({ option_text: correct[1].trim(), is_correct: true });
+    } else if (incorrect && currentQuestion) {
+      currentQuestion.options.push({ option_text: incorrect[1].trim(), is_correct: false });
+    }
+    // Any other line — including a stray C./I. before a QuTe. — has
+    // nothing sensible to attach to, so it's silently ignored.
+  }
+
+  const cleaned = blocks
+    .map((block) => ({
+      ...block,
+      questions: block.questions
+        .filter((q) => q.options.length > 0)
+        .map((q) => ({ ...q, options: shuffleOptions(q.options) })),
+    }))
+    .filter((block) => block.questions.length > 0);
+
+  if (cleaned.length === 0) {
+    return {
+      blocks: [],
+      error:
+        'Couldn\'t find any quiz content in that paste. Make sure it has "QuTi." and "QuTe." lines like the sample format.',
+    };
+  }
+
+  return { blocks: cleaned, error: null };
+}
+
+/** Builder for a single chapter's quiz — one course/chapter picked first,
+ * then MCQ questions authored below with the correct option marked. */
+function QuizBuilder({ chapters, existingQuiz, defaultChapterId, onClose, onSaved }) {
+  const [chapterId, setChapterId] = useState(
+    existingQuiz?.chapter_id || defaultChapterId || chapters[0]?.id || ""
+  );
+  const [title, setTitle] = useState(existingQuiz?.title || "");
+  const [passingScore, setPassingScore] = useState(existingQuiz?.passing_score ?? 70);
+  const [questions, setQuestions] = useState(
+    existingQuiz?.questions?.length
+      ? existingQuiz.questions.map((q) => ({
+          question_text: q.question_text,
+          options: q.options.map((o) => ({
+            option_text: o.option_text,
+            is_correct: o.is_correct,
+          })),
+        }))
+      : [blankQuestion()]
+  );
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState(null);
+
+  const [pasteOpen, setPasteOpen] = useState(false);
+  const [pasteText, setPasteText] = useState("");
+  const [parsedBlocks, setParsedBlocks] = useState([]);
+  const [selectedBlockIndex, setSelectedBlockIndex] = useState(0);
+  const [pasteError, setPasteError] = useState(null);
+
+  const editing = Boolean(existingQuiz);
+
+  const updateQuestion = (index, patch) =>
+    setQuestions(questions.map((q, i) => (i === index ? { ...q, ...patch } : q)));
+
+  const updateOption = (qIndex, oIndex, patch) =>
+    setQuestions(
+      questions.map((q, i) =>
+        i === qIndex
+          ? { ...q, options: q.options.map((o, j) => (j === oIndex ? { ...o, ...patch } : o)) }
+          : q
+      )
+    );
+
+  const setCorrectOption = (qIndex, oIndex) =>
+    setQuestions(
+      questions.map((q, i) =>
+        i === qIndex
+          ? { ...q, options: q.options.map((o, j) => ({ ...o, is_correct: j === oIndex })) }
+          : q
+      )
+    );
+
+  const addQuestion = () => setQuestions([...questions, blankQuestion()]);
+  const removeQuestion = (index) => setQuestions(questions.filter((_, i) => i !== index));
+
+  const applyBlock = (block) => {
+    if (!block) return;
+    setTitle(block.title);
+    setQuestions(
+      block.questions.length
+        ? block.questions.map((q) => ({
+            question_text: q.question_text,
+            options: q.options.map((o) => ({ ...o })),
+          }))
+        : [blankQuestion()]
+    );
+  };
+
+  const handleParsePaste = () => {
+    const { blocks, error: parseErr } = parseQuizPaste(pasteText);
+    if (parseErr) {
+      setPasteError(parseErr);
+      setParsedBlocks([]);
+      return;
+    }
+    setPasteError(null);
+    setParsedBlocks(blocks);
+    setSelectedBlockIndex(0);
+    applyBlock(blocks[0]);
+  };
+
+  const handleBlockPick = (index) => {
+    setSelectedBlockIndex(index);
+    applyBlock(parsedBlocks[index]);
+  };
+
+  const addOption = (qIndex) =>
+    setQuestions(
+      questions.map((q, i) => (i === qIndex ? { ...q, options: [...q.options, blankOption()] } : q))
+    );
+
+  const removeOption = (qIndex, oIndex) =>
+    setQuestions(
+      questions.map((q, i) =>
+        i === qIndex ? { ...q, options: q.options.filter((_, j) => j !== oIndex) } : q
+      )
+    );
+
+  const isValid =
+    chapterId &&
+    title.trim() &&
+    questions.length > 0 &&
+    questions.every(
+      (q) =>
+        q.question_text.trim() &&
+        q.options.filter((o) => o.option_text.trim()).length >= 2 &&
+        q.options.some((o) => o.is_correct && o.option_text.trim())
+    );
+
+  const save = async () => {
+    setSaving(true);
+    setError(null);
+
+    const payload = {
+      title: title.trim(),
+      passing_score: Number(passingScore) || 70,
+      questions: questions.map((q) => ({
+        question_text: q.question_text.trim(),
+        options: q.options
+          .filter((o) => o.option_text.trim())
+          .map((o) => ({ option_text: o.option_text.trim(), is_correct: o.is_correct })),
+      })),
+    };
+
+    try {
+      await quizApi.save(chapterId, payload);
+      onSaved();
+    } catch (err) {
+      setError(err);
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Modal
+      wide
+      eyebrow={editing ? "Edit quiz" : "New quiz"}
+      title={editing ? existingQuiz.title : "Build a chapter quiz"}
+      onClose={onClose}
+      actions={
+        <>
+          <Button variant="ghost" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button onClick={save} disabled={saving || !isValid}>
+            {saving ? "Saving" : "Save quiz"}
+          </Button>
+        </>
+      }
+    >
+      {error && <ErrorPanel error={error} />}
+
+      <button
+        type="button"
+        className="btn btn-ghost btn-small"
+        onClick={() => setPasteOpen(!pasteOpen)}
+      >
+        {pasteOpen ? "Hide paste from text" : "Paste from text"}
+      </button>
+
+      {pasteOpen && (
+        <div className="builder-spaced">
+          <label className="field-label" htmlFor="quiz-paste">
+            Paste "QuTi./QuTe./C./I." formatted text
+          </label>
+          <textarea
+            id="quiz-paste"
+            className="text-input textarea"
+            value={pasteText}
+            onChange={(e) => setPasteText(e.target.value)}
+            placeholder={"QuTi. Chapter 1 Quiz\n\nQuTe. Question text\nC. Correct option\nI. Incorrect option"}
+          />
+          <Button variant="ghost" onClick={handleParsePaste} disabled={!pasteText.trim()}>
+            Parse text
+          </Button>
+
+          {pasteError && <div className="form-error">{pasteError}</div>}
+
+          {parsedBlocks.length > 1 && (
+            <>
+              <label className="field-label" htmlFor="quiz-paste-block">
+                Which quiz block should fill this chapter's form?
+              </label>
+              <select
+                id="quiz-paste-block"
+                className="text-input"
+                value={selectedBlockIndex}
+                onChange={(e) => handleBlockPick(Number(e.target.value))}
+              >
+                {parsedBlocks.map((block, i) => (
+                  <option key={i} value={i}>
+                    {block.title || "(untitled quiz)"}
+                  </option>
+                ))}
+              </select>
+            </>
+          )}
+
+          {parsedBlocks.length > 0 && (
+            <p className="muted">
+              Found {parsedBlocks.length} quiz block{parsedBlocks.length === 1 ? "" : "s"}. Review
+              the fields below before saving.
+            </p>
+          )}
+        </div>
+      )}
+
+      <label className="field-label" htmlFor="quiz-chapter">
+        Chapter
+      </label>
+      <select
+        id="quiz-chapter"
+        className="text-input"
+        value={chapterId}
+        onChange={(e) => setChapterId(Number(e.target.value))}
+        disabled={editing}
+      >
+        {chapters.map((chapter) => (
+          <option key={chapter.id} value={chapter.id}>
+            {chapter.courseTitle} — Chapter {chapter.chapter_number}: {chapter.title}
+          </option>
+        ))}
+      </select>
+
+      <label className="field-label" htmlFor="quiz-title">
+        Quiz title
+      </label>
+      <input
+        id="quiz-title"
+        className="text-input"
+        value={title}
+        onChange={(e) => setTitle(e.target.value)}
+        placeholder="e.g. Chapter 1 checkpoint"
+      />
+
+      <label className="field-label" htmlFor="quiz-passing-score">
+        Passing score (%)
+      </label>
+      <input
+        id="quiz-passing-score"
+        className="text-input"
+        type="number"
+        min="0"
+        max="100"
+        value={passingScore}
+        onChange={(e) => setPassingScore(e.target.value)}
+      />
+
+      <div className="builder-heading">Questions</div>
+
+      {questions.map((question, qIndex) => (
+        <div className="builder-chapter" key={qIndex}>
+          <div className="builder-chapter-head">
+            <span className="builder-chapter-number">{qIndex + 1}</span>
+            <input
+              className="text-input"
+              value={question.question_text}
+              onChange={(e) => updateQuestion(qIndex, { question_text: e.target.value })}
+              placeholder="Question text"
+            />
+            {questions.length > 1 && (
+              <button
+                type="button"
+                className="btn-icon btn-icon-danger"
+                onClick={() => removeQuestion(qIndex)}
+                title="Remove question"
+              >
+                ✕
+              </button>
+            )}
+          </div>
+
+          {question.options.map((option, oIndex) => (
+            <div
+              className={`builder-option-row ${
+                option.is_correct ? "builder-option-row-correct" : ""
+              }`}
+              key={oIndex}
+            >
+              <input
+                type="radio"
+                name={`correct-${qIndex}`}
+                checked={option.is_correct}
+                onChange={() => setCorrectOption(qIndex, oIndex)}
+                title="Mark as the correct answer"
+              />
+              <input
+                className="text-input"
+                value={option.option_text}
+                onChange={(e) => updateOption(qIndex, oIndex, { option_text: e.target.value })}
+                placeholder={`Option ${oIndex + 1}`}
+              />
+              {question.options.length > 2 && (
+                <button
+                  type="button"
+                  className="btn-icon btn-icon-danger"
+                  onClick={() => removeOption(qIndex, oIndex)}
+                  title="Remove option"
+                >
+                  ✕
+                </button>
+              )}
+            </div>
+          ))}
+
+          {question.options.length < 4 && (
+            <Button variant="ghost" onClick={() => addOption(qIndex)}>
+              Add option
+            </Button>
+          )}
+        </div>
+      ))}
+
+      <Button variant="ghost" onClick={addQuestion}>
+        Add question
+      </Button>
+    </Modal>
+  );
+}
+
+export default function AdminQuizzes() {
+  const { data: quizzes, loading, error, reload } = useAsync(() => quizApi.adminList(), []);
+
+  const [courses, setCourses] = useState([]);
+  const [chapters, setChapters] = useState([]);
+  const [builderOpen, setBuilderOpen] = useState(false);
+  const [editingQuiz, setEditingQuiz] = useState(null);
+  const [defaultChapterId, setDefaultChapterId] = useState(null);
+  const [deletingId, setDeletingId] = useState(null);
+  const [results, setResults] = useState(null);
+  const [resultsLoading, setResultsLoading] = useState(false);
+
+  // The builder needs every chapter across every course, flattened, so an
+  // admin can pick "which chapter is this quiz for" from one list.
+  useEffect(() => {
+    let cancelled = false;
+
+    courseApi
+      .list()
+      .then(async (courseList) => {
+        if (cancelled) return;
+        setCourses(courseList);
+
+        const chapterLists = await Promise.all(
+          courseList.map((course) =>
+            courseApi
+              .chapters(course.id)
+              .then((chs) => chs.map((c) => ({ ...c, courseTitle: course.title })))
+          )
+        );
+
+        if (!cancelled) setChapters(chapterLists.flat());
+      })
+      .catch(() => {
+        /* the quizzes list itself will surface a load error already */
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const openNewQuiz = () => {
+    setEditingQuiz(null);
+    setDefaultChapterId(chapters.find((c) => !c.quiz)?.id ?? chapters[0]?.id ?? null);
+    setBuilderOpen(true);
+  };
+
+  const openEditQuiz = async (quizId) => {
+    const full = await quizApi.adminGet(quizId);
+    setEditingQuiz(full);
+    setBuilderOpen(true);
+  };
+
+  const viewResults = async (quizId) => {
+    setResultsLoading(true);
+    try {
+      const data = await quizApi.results(quizId);
+      setResults(data);
+    } finally {
+      setResultsLoading(false);
+    }
+  };
+
+  const removeQuiz = async (quizId) => {
+    setDeletingId(quizId);
+    try {
+      await quizApi.remove(quizId);
+      reload();
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
+  if (loading) return <Loading label="Loading quizzes" />;
+  if (error) return <ErrorPanel error={error} onRetry={reload} />;
+
+  return (
+    <>
+      <PageTitle
+        eyebrow="Quizzes"
+        title="Chapter quizzes"
+        lede="Every chapter has one mandatory multiple-choice quiz. A student cannot move to the next chapter until they pass it."
+        action={
+          <Button onClick={openNewQuiz} disabled={chapters.length === 0}>
+            New quiz
+          </Button>
+        }
+      />
+
+      {quizzes.length === 0 ? (
+        <EmptyState
+          title="No quizzes yet"
+          body="Create your first course chapter, then come back here to add its quiz."
+        />
+      ) : (
+        <div className="table-card">
+          <table className="table">
+            <thead>
+              <tr>
+                <th>Course</th>
+                <th>Chapter</th>
+                <th>Quiz</th>
+                <th>Questions</th>
+                <th>Pass mark</th>
+                <th>Attempts</th>
+                <th>Pass rate</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {quizzes.map((quiz) => (
+                <tr key={quiz.quiz_id}>
+                  <td>{quiz.course_title}</td>
+                  <td>{quiz.chapter_title}</td>
+                  <td className="table-title-cell">{quiz.quiz_title}</td>
+                  <td>{quiz.question_count}</td>
+                  <td>{quiz.passing_score}%</td>
+                  <td>{quiz.attempts_count}</td>
+                  <td>
+                    {quiz.attempts_count > 0
+                      ? `${Math.round((quiz.pass_count / quiz.attempts_count) * 100)}%`
+                      : <span className="muted">No attempts</span>}
+                  </td>
+                  <td className="table-action-cell">
+                    <button
+                      className="btn-icon-quiet"
+                      onClick={() => viewResults(quiz.quiz_id)}
+                      title="View results"
+                    >
+                      Results
+                    </button>
+                    <button
+                      className="btn-icon-quiet"
+                      onClick={() => openEditQuiz(quiz.quiz_id)}
+                      title="Edit quiz"
+                    >
+                      Edit
+                    </button>
+                    <button
+                      className="btn-icon btn-icon-danger"
+                      onClick={() => removeQuiz(quiz.quiz_id)}
+                      disabled={deletingId === quiz.quiz_id}
+                      title="Delete quiz"
+                    >
+                      ✕
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {builderOpen && chapters.length > 0 && (
+        <QuizBuilder
+          chapters={chapters}
+          existingQuiz={editingQuiz}
+          defaultChapterId={defaultChapterId}
+          onClose={() => setBuilderOpen(false)}
+          onSaved={() => {
+            setBuilderOpen(false);
+            reload();
+          }}
+        />
+      )}
+
+      {(results || resultsLoading) && (
+        <Drawer
+          eyebrow="Results"
+          title={results?.quiz_title || "Loading"}
+          onClose={() => setResults(null)}
+        >
+          {resultsLoading ? (
+            <Loading label="Loading results" />
+          ) : results.rows.length === 0 ? (
+            <p className="muted">No one has attempted this quiz yet.</p>
+          ) : (
+            <table className="table">
+              <thead>
+                <tr>
+                  <th>Student</th>
+                  <th>Attempts</th>
+                  <th>Best score</th>
+                  <th>Passed</th>
+                </tr>
+              </thead>
+              <tbody>
+                {results.rows.map((row) => (
+                  <tr key={row.user_id}>
+                    <td className="table-title-cell">{row.user_name}</td>
+                    <td>{row.attempts_count}</td>
+                    <td>{row.best_score}%</td>
+                    <td>{row.passed ? "Yes" : "Not yet"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </Drawer>
+      )}
+    </>
+  );
+}

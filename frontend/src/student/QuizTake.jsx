@@ -1,0 +1,150 @@
+import { useState } from "react";
+import { useNavigate, useParams } from "react-router-dom";
+import { quizApi } from "../api/endpoints";
+import { useAsync } from "../api/useAsync";
+import { Button, ErrorPanel, Loading } from "../components/ui";
+
+export default function QuizTake() {
+  const { quizId } = useParams();
+  const navigate = useNavigate();
+
+  const { data: quiz, loading, error } = useAsync(() => quizApi.take(quizId), [quizId]);
+
+  const [selections, setSelections] = useState({});
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState(null);
+  const [result, setResult] = useState(null);
+
+  if (loading) return <Loading label="Loading quiz" />;
+
+  if (error) {
+    return (
+      <>
+        <button className="back-link" onClick={() => navigate("/quizzes")}>
+          Back to quizzes
+        </button>
+        <h1 className="page-title">Could not open this quiz</h1>
+        <ErrorPanel error={error} />
+      </>
+    );
+  }
+
+  const selectOption = (questionId, optionId) =>
+    setSelections((prev) => ({ ...prev, [questionId]: optionId }));
+
+  const answeredCount = quiz.questions.filter((q) => selections[q.id] !== undefined).length;
+  const allAnswered = answeredCount === quiz.questions.length;
+
+  const submit = async () => {
+    setSubmitting(true);
+    setSubmitError(null);
+
+    const answers = quiz.questions.map((q) => ({
+      question_id: q.id,
+      option_id: selections[q.id] ?? null,
+    }));
+
+    try {
+      const attempt = await quizApi.submit(quizId, answers);
+
+      if (attempt.passed) {
+        // Passing sends the student straight back into the course, onto
+        // whichever lesson unlocked next — not into the separate Quizzes
+        // section, which would break the learning flow they were just in.
+        navigate(`/courses/${attempt.course_id}`, {
+          state: attempt.certificate_issued ? { showCertificateInterstitial: true } : undefined,
+        });
+        return;
+      }
+
+      setResult(attempt);
+    } catch (err) {
+      setSubmitError(err.message);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  if (result) {
+    return (
+      <>
+        <button className="back-link" onClick={() => navigate("/quizzes")}>
+          Back to quizzes
+        </button>
+
+        <h1 className="page-title">Not quite there</h1>
+
+        <div className="player-banner">
+          You scored <strong>{result.score}%</strong> — the pass mark is {quiz.passing_score}%.
+          Review the chapter's lessons and try again when you're ready.
+        </div>
+
+        <div className="lesson-actions">
+          <Button
+            variant="ghost"
+            onClick={() => {
+              setResult(null);
+              setSelections({});
+            }}
+          >
+            Retake now
+          </Button>
+        </div>
+      </>
+    );
+  }
+
+  return (
+    <>
+      <button className="back-link" onClick={() => navigate("/quizzes")}>
+        Back to quizzes
+      </button>
+
+      <div className="eyebrow">Quiz</div>
+      <h1 className="page-title">{quiz.title}</h1>
+      <p className="page-lede">
+        Answer every question, then submit. You need {quiz.passing_score}% to pass.
+      </p>
+      <div className="quiz-progress">
+        {answeredCount} of {quiz.questions.length} answered
+      </div>
+
+      {quiz.questions.map((question, index) => (
+        <div className="quiz-question" key={question.id}>
+          <div className="quiz-question-head">
+            <span className="builder-chapter-number">
+              Question {index + 1} of {quiz.questions.length}
+            </span>
+            <span className="quiz-question-text">{question.question_text}</span>
+          </div>
+
+          {question.options.map((option) => {
+            const checked = selections[question.id] === option.id;
+            return (
+              <label
+                className={`quiz-option ${checked ? "quiz-option-checked" : ""}`}
+                key={option.id}
+              >
+                <input
+                  type="radio"
+                  name={`question-${question.id}`}
+                  checked={checked}
+                  onChange={() => selectOption(question.id, option.id)}
+                />
+                <span>{option.option_text}</span>
+              </label>
+            );
+          })}
+        </div>
+      ))}
+
+      {submitError && <div className="form-error">{submitError}</div>}
+
+      <div className="lesson-actions">
+        <Button onClick={submit} disabled={!allAnswered || submitting}>
+          {submitting ? "Submitting" : "Submit quiz"}
+        </Button>
+      </div>
+    </>
+  );
+}
