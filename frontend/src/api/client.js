@@ -21,6 +21,29 @@ export class ApiError extends Error {
   get isNotFound() {
     return this.status === 404;
   }
+
+  // Sign-in is rate limited per identifier. The detail explains the wait,
+  // so callers generally just show the message.
+  get isRateLimited() {
+    return this.status === 429;
+  }
+}
+
+/*
+ * Called whenever the API rejects a request as unauthenticated. The auth
+ * layer registers a handler here at start-up so an expired or revoked
+ * token drops the user back to the sign-in screen.
+ *
+ * This matters more than it used to: a token is now invalidated the moment
+ * an admin resets that account's password or changes its role, so a
+ * signed-in user can be rejected mid-session rather than only when their
+ * token expires. Without this they would sit on a page whose every request
+ * fails, with no indication why.
+ */
+let unauthorisedHandler = null;
+
+export function onUnauthorised(handler) {
+  unauthorisedHandler = handler;
 }
 
 export function getToken() {
@@ -110,7 +133,15 @@ export async function request(path, { method = "GET", body, form, headers = {}, 
   const data = await parseResponse(response);
 
   if (!response.ok) {
-    throw new ApiError(response.status, readDetail(data, response.status));
+    const error = new ApiError(response.status, readDetail(data, response.status));
+
+    // A failed sign-in is a 401 too, but the user is not signed in to be
+    // signed out of — only authenticated requests should trigger this.
+    if (error.isUnauthorised && auth && unauthorisedHandler) {
+      unauthorisedHandler(error);
+    }
+
+    throw error;
   }
 
   return data;

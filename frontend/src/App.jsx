@@ -1,15 +1,10 @@
+import { Suspense, lazy } from "react";
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { AuthProvider, useAuth } from "./auth/AuthContext";
 import LoginPage from "./auth/LoginPage";
 import Shell from "./components/Shell";
+import ErrorBoundary from "./components/ErrorBoundary";
 import { Loading } from "./components/ui";
-
-import AdminDashboard from "./admin/AdminDashboard";
-import AdminStudents from "./admin/AdminStudents";
-import AdminCourses from "./admin/AdminCourses";
-import AdminCourseRoster from "./admin/AdminCourseRoster";
-import AdminQuizzes from "./admin/AdminQuizzes";
-import AdminCertificates from "./admin/AdminCertificates";
 
 import StudentDashboard from "./student/StudentDashboard";
 import StudentCourses from "./student/StudentCourses";
@@ -18,9 +13,23 @@ import StudentQuizzes from "./student/StudentQuizzes";
 import QuizTake from "./student/QuizTake";
 import StudentCertificates from "./student/StudentCertificates";
 
+// The admin pages are the bulk of the application and most people here
+// are students, who can never open any of them. Loading them lazily keeps
+// the course builder and quiz builder out of a student's first download.
+const AdminDashboard = lazy(() => import("./admin/AdminDashboard"));
+const AdminStudents = lazy(() => import("./admin/AdminStudents"));
+const AdminCourses = lazy(() => import("./admin/courses/AdminCourses"));
+const AdminCourseRoster = lazy(() => import("./admin/AdminCourseRoster"));
+const AdminQuizzes = lazy(() => import("./admin/AdminQuizzes"));
+const AdminCertificates = lazy(() => import("./admin/AdminCertificates"));
+
 function AdminOnly({ children }) {
   const { isAdmin } = useAuth();
-  return isAdmin ? children : <Navigate to="/" replace />;
+  if (!isAdmin) return <Navigate to="/" replace />;
+
+  return (
+    <Suspense fallback={<Loading label="Loading" />}>{children}</Suspense>
+  );
 }
 
 function Routing() {
@@ -97,10 +106,12 @@ function Routing() {
 
 export default function App() {
   return (
-    <BrowserRouter>
-      <AuthProvider>
-        <Routing />
-      </AuthProvider>
-    </BrowserRouter>
+    <ErrorBoundary>
+      <BrowserRouter>
+        <AuthProvider>
+          <Routing />
+        </AuthProvider>
+      </BrowserRouter>
+    </ErrorBoundary>
   );
 }

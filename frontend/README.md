@@ -20,6 +20,34 @@ npm run build             # production bundle in dist/
 npm run preview           # serve the built bundle locally
 ```
 
+## Tests
+
+```bash
+npm test                  # once
+npm run test:watch        # while working
+```
+
+Vitest with React Testing Library, driving components the way a person
+uses them — click the option, press submit — rather than reaching into
+component state. The API layer is mocked at `src/api/endpoints`, so these
+cover the UI's own behaviour and the backend suite covers the rest.
+
+Worth knowing what they are protecting:
+
+- **`CourseBuilder.test.jsx`** is the client half of a data-integrity
+  guarantee. The API matches chapters and lessons by `id`; if the builder
+  stops sending them, a save reads as "delete everything and create new
+  rows" and every student's progress against that course is destroyed.
+  The backend cannot detect the difference, so this is the only thing that
+  catches it.
+- **`CoursePlayer.test.jsx`** covers the unlock rules and the hand-offs —
+  a quiz is offered, never opened automatically; a finished course is a
+  state rather than an error, even though the API reports it as a 404.
+- **`AuthContext.test.jsx`** covers being signed out mid-session, which is
+  reachable without a token expiring: it stops working the moment an admin
+  resets that account's password or changes its role.
+
+
 ## Configuration
 
 | Variable | Purpose |
@@ -30,23 +58,41 @@ Vite inlines this at build time, so a change requires a rebuild, not just a rest
 
 ## Structure
 
-```
+```text
 src/
 ├── api/
-│   ├── client.js       fetch wrapper — JWT, base URL, ApiError
-│   ├── endpoints.js    one function per backend route
-│   └── useAsync.js     load / error / reload hook
+│   ├── client.js         fetch wrapper — JWT, base URL, ApiError, 401 handling
+│   ├── endpoints.js      one function per backend route
+│   ├── useAsync.js       reads: data / loading / error / reload
+│   └── useMutation.js    writes: busy / error, and a double-click guard
 ├── auth/
-│   ├── AuthContext.jsx session state, restores token on refresh
-│   └── LoginPage.jsx   sign in (there is no self-service registration)
+│   ├── AuthContext.jsx   session state, restores token on refresh
+│   └── LoginPage.jsx     sign in (there is no self-service registration)
 ├── components/
-│   ├── Shell.jsx       sidebar and layout, role-aware navigation
-│   └── ui.jsx          shared presentational pieces
-├── admin/              dashboard, students, courses, roster
-├── student/            dashboard, course browsing, course player
-├── App.jsx             routing and guards
-└── styles/             tokens.css, layout.css, components.css, responsive.css
+│   ├── ErrorBoundary.jsx catches a render crash so it is not a blank page
+│   ├── Shell.jsx         sidebar and layout, role-aware navigation
+│   └── ui.jsx            shared presentational pieces
+├── admin/                dashboard, students, quizzes, certificates, roster
+│   └── courses/          page, course builder, access matrix, detail drawer
+├── student/              dashboard, course browsing, course player
+├── test/                 vitest setup and a router-aware render helper
+├── App.jsx               routing, guards, lazy-loaded admin pages
+└── styles/               tokens.css, layout.css, components.css, responsive.css
 ```
+
+Pages live under `admin/` and `student/`. Anything that outgrows a single
+file gets a folder beside it — `admin/courses/` was one 594-line file
+holding four separate things.
+
+`api/useAsync` is for reads, `api/useMutation` for writes. Every page used
+to hand-roll the write case, and most got the same detail wrong: clearing
+the busy flag on success as well as failure, so a slow save could be
+submitted twice.
+
+Admin pages are lazily loaded in `App.jsx`. They are the bulk of the
+application and most people here are students, who can never open any of
+them — keeping them out of the initial download takes it from 235 kB to
+205 kB.
 
 ## How the API client works
 

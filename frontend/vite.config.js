@@ -6,4 +6,11 @@ export default defineConfig({
   server: {
     port: 5173,
   },
+  test: {
+    environment: "jsdom",
+    globals: true,
+    setupFiles: "./src/test/setup.js",
+    // Only our own tests — without this, vitest walks node_modules too.
+    include: ["src/**/*.test.{js,jsx}"],
+  },
 });

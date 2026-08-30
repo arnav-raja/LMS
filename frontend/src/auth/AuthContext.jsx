@@ -1,12 +1,28 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { authApi } from "../api/endpoints";
-import { clearToken, getToken, setToken } from "../api/client";
+import { clearToken, getToken, onUnauthorised, setToken } from "../api/client";
 
 const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+
+  // Any authenticated request the API rejects signs the user out, which
+  // sends them back to the login screen instead of leaving them on a page
+  // whose every request quietly fails.
+  //
+  // This is reachable mid-session, not only on expiry: a token stops
+  // working the moment an admin resets that account's password or changes
+  // its role.
+  useEffect(() => {
+    onUnauthorised(() => {
+      clearToken();
+      setUser(null);
+    });
+
+    return () => onUnauthorised(null);
+  }, []);
 
   // On first load, if a token is already in storage, confirm it still works.
   useEffect(() => {
