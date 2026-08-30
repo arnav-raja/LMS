@@ -1,4 +1,3 @@
-from datetime import datetime
 
 from sqlalchemy import Boolean
 from sqlalchemy import Column
@@ -12,6 +11,8 @@ from sqlalchemy import Text
 from sqlalchemy.orm import relationship
 
 from app.database import Base
+
+from app.utils.time import utc_now
 
 
 class Quiz(Base):
@@ -40,6 +41,17 @@ class Quiz(Base):
         Integer,
         nullable=False,
         default=70
+    )
+
+    # Bumped whenever the questions or options change. Editing a quiz used
+    # to delete and recreate it, taking every past attempt with it; the
+    # quiz row now survives an edit, so this is what tells an admin that a
+    # student's pass was earned against different questions.
+    version = Column(
+        Integer,
+        nullable=False,
+        default=1,
+        server_default="1"
     )
 
     chapter = relationship(
@@ -144,7 +156,7 @@ class QuizAttempt(Base):
 
     user_id = Column(
         Integer,
-        ForeignKey("users.id"),
+        ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
         index=True
     )
@@ -168,10 +180,20 @@ class QuizAttempt(Base):
         default=False
     )
 
-    submitted_at = Column(
-        DateTime,
+    # Which version of the quiz this attempt was answering. Recorded at
+    # submission, never updated afterwards — the score is only meaningful
+    # against the questions that were actually asked.
+    quiz_version = Column(
+        Integer,
         nullable=False,
-        default=datetime.utcnow
+        default=1,
+        server_default="1"
+    )
+
+    submitted_at = Column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=utc_now
     )
 
     user = relationship("User")

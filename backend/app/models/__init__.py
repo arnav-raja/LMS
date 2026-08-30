@@ -1,3 +1,5 @@
+from app.models.audit_entry import AuditEntry
+from app.models.login_attempt import LoginAttempt
 from app.models.user import User
 from app.models.course import Course
 from app.models.chapter import Chapter

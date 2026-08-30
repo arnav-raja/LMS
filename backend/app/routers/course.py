@@ -1,6 +1,5 @@
 from fastapi import APIRouter
 from fastapi import Depends
-from fastapi import HTTPException
 
 from sqlalchemy.orm import Session
 
@@ -42,18 +41,10 @@ def publish(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin)
 ):
-    course = publish_course(
+    return publish_course(
         db=db,
         course_id=course_id
     )
-
-    if course is None:
-        raise HTTPException(
-            status_code=404,
-            detail="Course not found"
-        )
-
-    return course
 
 
 @router.post("/{course_id}/archive", response_model=CourseResponse)
@@ -62,15 +53,7 @@ def archive(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin)
 ):
-    course = archive_course(
+    return archive_course(
         db=db,
         course_id=course_id
     )
-
-    if course is None:
-        raise HTTPException(
-            status_code=404,
-            detail="Course not found"
-        )
-
-    return course

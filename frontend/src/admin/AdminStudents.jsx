@@ -287,6 +287,46 @@ function StudentDetail({ record, onClose, onChanged }) {
   );
 }
 
+// Everything an admin can do to an account happens on this page, so this
+// is where the record of it belongs. Read-only and append-only: there is
+// no route that edits or removes an entry.
+function ActivityDrawer({ onClose }) {
+  const { data, loading, error } = useAsync(() => adminApi.audit(), []);
+
+  return (
+    <Drawer eyebrow="Account activity" title="Recent changes" onClose={onClose}>
+      {loading ? (
+        <Loading label="Loading activity" />
+      ) : error ? (
+        <ErrorPanel error={error} />
+      ) : !data?.length ? (
+        <p className="muted">No account changes have been recorded yet.</p>
+      ) : (
+        <table className="table">
+          <thead>
+            <tr>
+              <th>When</th>
+              <th>Who</th>
+              <th>What</th>
+            </tr>
+          </thead>
+          <tbody>
+            {data.map((entry) => (
+              <tr key={entry.id}>
+                <td className="muted">
+                  {new Date(entry.created_at).toLocaleString()}
+                </td>
+                <td className="table-title-cell">{entry.actor_name}</td>
+                <td>{entry.summary}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </Drawer>
+  );
+}
+
 export default function AdminStudents() {
   const { data, loading, error, reload } = useAsync(() => adminApi.users(), []);
   const { data: reference } = useAsync(loadReferenceData, []);
@@ -294,6 +334,7 @@ export default function AdminStudents() {
   const [filter, setFilter] = useState("ALL");
   const [selected, setSelected] = useState(null); // the account row whose detail is open
   const [creating, setCreating] = useState(false);
+  const [activityOpen, setActivityOpen] = useState(false);
 
   if (loading) return <Loading label="Loading students" />;
 
@@ -315,8 +356,17 @@ export default function AdminStudents() {
         eyebrow="People"
         title="Students"
         lede="Every account on Arnav LMS. Add one here, then open a row to see its roster, edit its profile, or remove it."
-        action={<Button onClick={() => setCreating(true)}>New student</Button>}
+        action={
+          <>
+            <Button variant="ghost" onClick={() => setActivityOpen(true)}>
+              Activity
+            </Button>
+            <Button onClick={() => setCreating(true)}>New student</Button>
+          </>
+        }
       />
+
+      {activityOpen && <ActivityDrawer onClose={() => setActivityOpen(false)} />}
 
       {students.length === 0 ? (
         <EmptyState

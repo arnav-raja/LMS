@@ -2,6 +2,7 @@ from pydantic import BaseModel
 from pydantic import EmailStr
 
 from app.constants import Department
+from app.constants import Role
 from app.constants import Seniority
 
 
@@ -15,7 +16,7 @@ class UserResponse(BaseModel):
     name: str
     username: str | None = None
     email: EmailStr | None = None
-    role: str
+    role: Role
     department: Department | None = None
     seniority: Seniority | None = None
 

@@ -7,6 +7,10 @@ from sqlalchemy import UniqueConstraint
 
 from sqlalchemy.orm import relationship
 
+from app.constants import Department
+from app.constants import Seniority
+from app.constants import sql_value_list
+
 from app.database import Base
 
 
@@ -21,11 +25,11 @@ class CourseAccessRule(Base):
             name="uq_course_department_seniority"
         ),
         CheckConstraint(
-            "department IN ('CR', 'DE', 'EC', 'FI', 'HR', 'IN', 'MK', 'OP', 'SA')",
+            f"department IN {sql_value_list(Department)}",
             name="ck_course_access_rules_department_valid"
         ),
         CheckConstraint(
-            "seniority IN ('Manager', 'Senior', 'Mid', 'Junior')",
+            f"seniority IN {sql_value_list(Seniority)}",
             name="ck_course_access_rules_seniority_valid"
         ),
     )
@@ -38,7 +42,7 @@ class CourseAccessRule(Base):
 
     course_id = Column(
         Integer,
-        ForeignKey("courses.id"),
+        ForeignKey("courses.id", ondelete="CASCADE"),
         nullable=False
     )
 

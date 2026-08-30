@@ -1,10 +1,10 @@
-from datetime import datetime
-
 from sqlalchemy.orm import Session
 
 from app.models.progress import Progress
 from app.models.subchapter import Subchapter
 from app.models.chapter import Chapter
+
+from app.utils.time import utc_now
 
 
 def get_subchapter_course_id(
@@ -37,14 +37,14 @@ def complete_subchapter(
 
     if progress:
         progress.is_completed = True
-        progress.completed_at = datetime.utcnow()
+        progress.completed_at = utc_now()
 
     else:
         progress = Progress(
             user_id=user_id,
             subchapter_id=subchapter_id,
             is_completed=True,
-            completed_at=datetime.utcnow()
+            completed_at=utc_now()
         )
 
         db.add(progress)

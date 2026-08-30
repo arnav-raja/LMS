@@ -1,6 +1,5 @@
 from fastapi import APIRouter
 from fastapi import Depends
-from fastapi import HTTPException
 
 from sqlalchemy.orm import Session
 
@@ -43,18 +42,11 @@ def update(
     current_user: User = Depends(require_admin),
     db: Session = Depends(get_db)
 ):
-    try:
-        return update_course(
-            db=db,
-            course_id=course_id,
-            request=request
-        )
-
-    except ValueError as error:
-        raise HTTPException(
-            status_code=404,
-            detail=str(error)
-        )
+    return update_course(
+        db=db,
+        course_id=course_id,
+        request=request
+    )
 
 
 @router.delete("/{course_id}")
@@ -63,18 +55,11 @@ def delete(
     current_user: User = Depends(require_admin),
     db: Session = Depends(get_db)
 ):
-    try:
-        delete_course(
-            db=db,
-            course_id=course_id
-        )
+    delete_course(
+        db=db,
+        course_id=course_id
+    )
 
-        return {
-            "message": "Course deleted successfully"
-        }
-
-    except ValueError as error:
-        raise HTTPException(
-            status_code=404,
-            detail=str(error)
-        )
+    return {
+        "message": "Course deleted successfully"
+    }

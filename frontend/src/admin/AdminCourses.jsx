@@ -20,8 +20,18 @@ import {
   StatusBadge,
 } from "../components/ui";
 
-const blankSubchapter = () => ({ title: "", content: "" });
-const blankChapter = () => ({ title: "", description: "", subchapters: [blankSubchapter()] });
+// `id` is what tells the API this is an existing chapter or lesson rather
+// than a new one, so a save keeps the same rows and every student's
+// progress recorded against them stays attached. New items carry null,
+// and the API creates them. Without this the API would match by position,
+// and reordering two chapters would swap their students' history.
+const blankSubchapter = () => ({ id: null, title: "", content: "" });
+const blankChapter = () => ({
+  id: null,
+  title: "",
+  description: "",
+  subchapters: [blankSubchapter()],
+});
 
 function CourseBuilder({ course, onClose, onSaved }) {
   const editing = Boolean(course);
@@ -45,10 +55,12 @@ function CourseBuilder({ course, onClose, onSaved }) {
       .then((data) => {
         if (cancelled) return;
         const mapped = data.map((chapter) => ({
+          id: chapter.id,
           title: chapter.title,
           description: chapter.description || "",
           subchapters: chapter.subchapters.length
             ? chapter.subchapters.map((sub) => ({
+                id: sub.id,
                 title: sub.title,
                 content: sub.content || "",
               }))
@@ -90,11 +102,16 @@ function CourseBuilder({ course, onClose, onSaved }) {
       chapters: chapters
         .filter((c) => c.title.trim())
         .map((c) => ({
+          id: c.id ?? null,
           title: c.title.trim(),
           description: c.description.trim() || null,
           subchapters: c.subchapters
             .filter((s) => s.title.trim())
-            .map((s) => ({ title: s.title.trim(), content: s.content.trim() || null })),
+            .map((s) => ({
+              id: s.id ?? null,
+              title: s.title.trim(),
+              content: s.content.trim() || null,
+            })),
         })),
     };
 

@@ -20,7 +20,7 @@ class Chapter(Base):
 
     course_id = Column(
         Integer,
-        ForeignKey("courses.id"),
+        ForeignKey("courses.id", ondelete="CASCADE"),
         nullable=False,
         index=True
     )

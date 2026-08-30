@@ -1,5 +1,9 @@
 from sqlalchemy.orm import Session
 
+from app.constants import CourseStatus
+
+from app.errors import NotFoundError
+
 from app.models.course import Course
 
 
@@ -32,9 +36,9 @@ def publish_course(
     )
 
     if course is None:
-        return None
+        raise NotFoundError("Course not found")
 
-    course.status = "published"
+    course.status = CourseStatus.PUBLISHED.value
 
     db.commit()
     db.refresh(course)
@@ -55,9 +59,9 @@ def archive_course(
     )
 
     if course is None:
-        return None
+        raise NotFoundError("Course not found")
 
-    course.status = "archived"
+    course.status = CourseStatus.ARCHIVED.value
 
     db.commit()
     db.refresh(course)

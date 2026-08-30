@@ -1,6 +1,5 @@
 from fastapi import APIRouter
 from fastapi import Depends
-from fastapi import HTTPException
 
 from sqlalchemy.orm import Session
 
@@ -21,6 +20,7 @@ from app.schemas.quiz import QuizTakeResponse
 from app.schemas.quiz import SubmitQuizRequest
 
 from app.services import quiz_service
+from app.services.certificate_service import check_and_issue_certificate
 
 
 router = APIRouter(tags=["Quizzes"])
@@ -38,17 +38,11 @@ def create_quiz(
     current_user: User = Depends(require_admin),
     db: Session = Depends(get_db)
 ):
-    try:
-        return quiz_service.create_or_replace_quiz(
-            db=db,
-            chapter_id=chapter_id,
-            request=request
-        )
-    except ValueError as error:
-        raise HTTPException(
-            status_code=404,
-            detail=str(error)
-        )
+    return quiz_service.save_quiz(
+        db=db,
+        chapter_id=chapter_id,
+        request=request
+    )
 
 
 @router.get("/admin/quizzes", response_model=list[AdminQuizListItem])
@@ -65,15 +59,7 @@ def get_quiz_admin(
     current_user: User = Depends(require_admin),
     db: Session = Depends(get_db)
 ):
-    quiz = quiz_service.get_quiz_admin_view(db, quiz_id)
-
-    if quiz is None:
-        raise HTTPException(
-            status_code=404,
-            detail="Quiz not found"
-        )
-
-    return quiz
+    return quiz_service.get_quiz_admin_view(db, quiz_id)
 
 
 @router.delete("/admin/quizzes/{quiz_id}")
@@ -82,11 +68,7 @@ def remove_quiz(
     current_user: User = Depends(require_admin),
     db: Session = Depends(get_db)
 ):
-    if not quiz_service.delete_quiz(db, quiz_id):
-        raise HTTPException(
-            status_code=404,
-            detail="Quiz not found"
-        )
+    quiz_service.delete_quiz(db, quiz_id)
 
     return {"deleted": True}
 
@@ -100,15 +82,7 @@ def quiz_results(
     current_user: User = Depends(require_admin),
     db: Session = Depends(get_db)
 ):
-    result = quiz_service.get_quiz_results_admin(db, quiz_id)
-
-    if result is None:
-        raise HTTPException(
-            status_code=404,
-            detail="Quiz not found"
-        )
-
-    return result
+    return quiz_service.get_quiz_results_admin(db, quiz_id)
 
 
 # ----------------------------------------------------- student: attempt ---
@@ -127,19 +101,7 @@ def take_quiz(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    quiz, error = quiz_service.get_quiz_take_view(db, current_user, quiz_id)
-
-    if error == "not_found":
-        raise HTTPException(
-            status_code=404,
-            detail="Quiz not found"
-        )
-
-    if error == "locked":
-        raise HTTPException(
-            status_code=403,
-            detail="Complete every lesson in this chapter first"
-        )
+    quiz = quiz_service.get_quiz_take_view(db, current_user, quiz_id)
 
     return {
         "id": quiz.id,
@@ -158,19 +120,8 @@ def submit_quiz(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    quiz, error = quiz_service.get_quiz_take_view(db, current_user, quiz_id)
-
-    if error == "not_found":
-        raise HTTPException(
-            status_code=404,
-            detail="Quiz not found"
-        )
-
-    if error == "locked":
-        raise HTTPException(
-            status_code=403,
-            detail="Complete every lesson in this chapter first"
-        )
+    # Same gate as viewing it — a locked quiz cannot be submitted either.
+    quiz = quiz_service.get_quiz_take_view(db, current_user, quiz_id)
 
     attempt = quiz_service.submit_quiz(
         db=db,
@@ -184,8 +135,6 @@ def submit_quiz(
     if attempt.passed:
         # A passed quiz may be the last requirement for the course —
         # check whether a certificate should now be issued.
-        from app.services.certificate_service import check_and_issue_certificate
-
         _, certificate_issued = check_and_issue_certificate(
             db=db,
             user_id=current_user.id,

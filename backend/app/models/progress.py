@@ -1,4 +1,3 @@
-from datetime import datetime
 
 from sqlalchemy import Boolean
 from sqlalchemy import Column
@@ -22,7 +21,7 @@ class Progress(Base):
 
     user_id = Column(
         Integer,
-        ForeignKey("users.id"),
+        ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
         index=True
     )
@@ -41,7 +40,7 @@ class Progress(Base):
     )
 
     completed_at = Column(
-        DateTime,
+        DateTime(timezone=True),
         nullable=True
     )
 

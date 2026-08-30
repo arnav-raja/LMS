@@ -1,14 +1,25 @@
+from sqlalchemy import CheckConstraint
 from sqlalchemy import Column
 from sqlalchemy import Integer
 from sqlalchemy import String
 
 from sqlalchemy.orm import relationship
 
+from app.constants import CourseStatus
+from app.constants import sql_value_list
+
 from app.database import Base
 
 
 class Course(Base):
     __tablename__ = "courses"
+
+    __table_args__ = (
+        CheckConstraint(
+            f"status IN {sql_value_list(CourseStatus)}",
+            name="ck_courses_status_valid"
+        ),
+    )
 
     id = Column(
         Integer,
@@ -35,7 +46,7 @@ class Course(Base):
     status = Column(
         String,
         nullable=False,
-        default="draft"
+        default=CourseStatus.DRAFT.value
     )
 
     chapters = relationship(

@@ -17,6 +17,19 @@ oauth2_scheme = OAuth2PasswordBearer(
 )
 
 
+# One message for every way a token can fail, so a caller cannot learn
+# from the response whether an account exists, whether it was deleted, or
+# whether their token was merely revoked.
+INVALID_CREDENTIALS = "Could not validate credentials"
+
+
+def _reject():
+    raise HTTPException(
+        status_code=401,
+        detail=INVALID_CREDENTIALS
+    )
+
+
 def get_current_user(
     token: str = Depends(oauth2_scheme),
     db: Session = Depends(get_db)
@@ -24,29 +37,35 @@ def get_current_user(
     payload = decode_access_token(token)
 
     if payload is None:
-        raise HTTPException(
-            status_code=401,
-            detail="Could not validate credentials"
-        )
+        _reject()
 
     user_id = payload.get("sub")
 
     if user_id is None:
-        raise HTTPException(
-            status_code=401,
-            detail="Could not validate credentials"
-        )
+        _reject()
+
+    try:
+        user_id = int(user_id)
+    except (TypeError, ValueError):
+        # `sub` is attacker-controlled in the sense that a forged token
+        # could carry anything; int() on it used to raise ValueError and
+        # surface as a 500.
+        _reject()
 
     user = (
         db.query(User)
-        .filter(User.id == int(user_id))
+        .filter(User.id == user_id)
         .first()
     )
 
     if user is None:
-        raise HTTPException(
-            status_code=401,
-            detail="User not found"
-        )
+        _reject()
+
+    # A token issued before the account's password or role last changed is
+    # no longer valid, even though it has not expired yet. Tokens minted
+    # before this claim existed carry no `tv` and are rejected outright,
+    # which signs everyone out once, on the deploy that introduces it.
+    if payload.get("tv") != user.token_version:
+        _reject()
 
     return user

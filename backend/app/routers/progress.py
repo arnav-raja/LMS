@@ -1,12 +1,14 @@
 from fastapi import APIRouter
 from fastapi import Depends
-from fastapi import HTTPException
 
 from sqlalchemy.orm import Session
 
 from app.database import get_db
 
 from app.dependencies.auth import get_current_user
+
+from app.errors import NotFoundError
+from app.errors import PermissionDeniedError
 
 from app.models.user import User
 
@@ -39,16 +41,10 @@ def complete(
     )
 
     if course_id is None:
-        raise HTTPException(
-            status_code=404,
-            detail="Subchapter not found"
-        )
+        raise NotFoundError("Subchapter not found")
 
     if not user_has_access(db, current_user, course_id):
-        raise HTTPException(
-            status_code=403,
-            detail="You do not have access to this course"
-        )
+        raise PermissionDeniedError("You do not have access to this course")
 
     if not current_user.is_admin and not is_subchapter_unlocked(
         db,
@@ -56,10 +52,7 @@ def complete(
         course_id,
         request.subchapter_id
     ):
-        raise HTTPException(
-            status_code=403,
-            detail="Complete the previous subchapter first"
-        )
+        raise PermissionDeniedError("Complete the previous subchapter first")
 
     result = complete_subchapter(
         db=db,
