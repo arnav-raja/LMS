@@ -1,6 +1,6 @@
 # Extra dependencies for running the test suite locally.
 # Install with: pip install -r requirements.txt -r requirements-dev.txt
-pytest==8.3.4
+pytest==9.1.1
 
 # Required by fastapi.testclient.TestClient, which the route tests in
 # tests/api/ use to drive the real app over HTTP.
