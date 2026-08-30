@@ -147,6 +147,57 @@ export async function request(path, { method = "GET", body, form, headers = {}, 
   return data;
 }
 
+/**
+ * Fetches a file from an authenticated endpoint and saves it.
+ *
+ * A plain `<a href>` cannot be used for these: the API authenticates with
+ * a bearer header, and a link carries no headers, so the download would
+ * arrive as a 401. The file has to be fetched properly, turned into a
+ * blob, and handed to a temporary link instead.
+ *
+ * The filename comes from the server's Content-Disposition when it sends
+ * one, so the export is named after the course or quiz it came from.
+ */
+export async function download(path, fallbackFilename = "export.csv") {
+  const headers = {};
+  const token = getToken();
+  if (token) headers["Authorization"] = `Bearer ${token}`;
+
+  let response;
+  try {
+    response = await fetch(`${BASE_URL}${path}`, { headers });
+  } catch {
+    throw new ApiError(0, "Cannot reach the server. Check that the API is running.");
+  }
+
+  if (!response.ok) {
+    const data = await parseResponse(response);
+    const error = new ApiError(response.status, readDetail(data, response.status));
+    if (error.isUnauthorised && unauthorisedHandler) unauthorisedHandler(error);
+    throw error;
+  }
+
+  const disposition = response.headers.get("Content-Disposition") || "";
+  const match = disposition.match(/filename="([^"]+)"/);
+  const filename = match ? match[1] : fallbackFilename;
+
+  const blob = await response.blob();
+  const url = URL.createObjectURL(blob);
+
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+
+  // Revoked on the next tick — Safari needs the URL to still be live when
+  // the click is handled.
+  setTimeout(() => URL.revokeObjectURL(url), 0);
+
+  return filename;
+}
+
 export const api = {
   get: (path, options) => request(path, { ...options, method: "GET" }),
   post: (path, body, options) => request(path, { ...options, method: "POST", body }),

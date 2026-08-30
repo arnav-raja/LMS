@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
+import { Download } from "lucide-react";
 import { adminApi, quizApi } from "../api/endpoints";
+import { useMutation } from "../api/useMutation";
 import { useAsync } from "../api/useAsync";
 import {
   Button,
@@ -430,6 +432,8 @@ export default function AdminQuizzes() {
   const [results, setResults] = useState(null);
   const [resultsLoading, setResultsLoading] = useState(false);
 
+  const exportResults = useMutation((quizId) => quizApi.exportResultsCsv(quizId));
+
   // The builder needs every chapter across every course, flattened, so an
   // admin can pick "which chapter is this quiz for" from one list.
   //
@@ -592,6 +596,20 @@ export default function AdminQuizzes() {
           ) : results.rows.length === 0 ? (
             <p className="muted">No one has attempted this quiz yet.</p>
           ) : (
+            <>
+            <div className="lesson-actions">
+              <Button
+                variant="ghost"
+                onClick={() => exportResults.run(results.quiz_id)}
+                disabled={exportResults.busy}
+              >
+                <Download size={15} />
+                {exportResults.busy ? "Preparing" : "Export CSV"}
+              </Button>
+            </div>
+            {exportResults.error && (
+              <div className="form-error">{exportResults.error.message}</div>
+            )}
             <table className="table">
               <thead>
                 <tr>
@@ -625,6 +643,7 @@ export default function AdminQuizzes() {
                 })}
               </tbody>
             </table>
+            </>
           )}
         </Drawer>
       )}

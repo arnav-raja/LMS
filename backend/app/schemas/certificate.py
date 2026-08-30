@@ -12,6 +12,21 @@ class CertificateResponse(BaseModel):
     issued_at: datetime
 
 
+class CertificateVerification(BaseModel):
+    """What a certificate's number proves, to anyone holding it.
+
+    Served without authentication, so it carries the least that still
+    makes it useful: enough to confirm the person named on the certificate
+    completed the course named on it, and nothing else. No email, no
+    account id, no scores, no department — none of which a recruiter
+    checking a certificate has any business seeing.
+    """
+    certificate_number: str
+    holder_name: str
+    course_title: str
+    issued_at: datetime
+
+
 class CertificateRegistryItem(BaseModel):
     """One row in the admin-wide certificate registry."""
     id: int

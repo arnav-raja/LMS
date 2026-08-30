@@ -1,4 +1,4 @@
-import { api, request } from "./client";
+import { api, download, request } from "./client";
 
 /*
  * One function per backend route. No route uses a trailing slash — keep it
@@ -72,6 +72,9 @@ export const adminApi = {
 
   courseRoster: (courseId) => api.get(`/admin/courses/${courseId}/students`),
 
+  exportRosterCsv: (courseId) =>
+    download(`/admin/courses/${courseId}/students.csv`, "roster.csv"),
+
   users: () => api.get("/admin/users"),
 
   createUser: (user) => api.post("/admin/users", user),
@@ -128,6 +131,9 @@ export const quizApi = {
 
   results: (quizId) => api.get(`/admin/quizzes/${quizId}/results`),
 
+  exportResultsCsv: (quizId) =>
+    download(`/admin/quizzes/${quizId}/results.csv`, "results.csv"),
+
   // Student: list across every accessible course, take, and submit.
   mine: () => api.get("/quizzes/me"),
 
@@ -143,6 +149,20 @@ export const certificateApi = {
 
   all: (courseId) =>
     api.get(courseId ? `/admin/certificates?course_id=${courseId}` : "/admin/certificates"),
+
+  // Public — no token. Whoever is handed a certificate has no account here.
+  verify: (certificateNumber) =>
+    request(`/verify/${encodeURIComponent(certificateNumber.trim())}`, {
+      auth: false,
+    }),
+
+  exportCsv: (courseId) =>
+    download(
+      courseId
+        ? `/admin/certificates.csv?course_id=${courseId}`
+        : "/admin/certificates.csv",
+      "certificates.csv"
+    ),
 };
 
 // Department and seniority lists are fetched live — see api/referenceData.js

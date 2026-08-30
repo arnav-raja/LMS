@@ -2,7 +2,16 @@ import { useNavigate, useParams } from "react-router-dom";
 import { adminApi } from "../api/endpoints";
 import { departmentLabel, loadReferenceData } from "../api/referenceData";
 import { useAsync } from "../api/useAsync";
-import { EmptyState, ErrorPanel, Loading, PageTitle, ProgressBar } from "../components/ui";
+import { Download } from "lucide-react";
+import { useMutation } from "../api/useMutation";
+import {
+  Button,
+  EmptyState,
+  ErrorPanel,
+  Loading,
+  PageTitle,
+  ProgressBar,
+} from "../components/ui";
 
 const formatDate = (value) => {
   if (!value) return "No activity yet";
@@ -21,6 +30,8 @@ export default function AdminCourseRoster() {
     [courseId]
   );
   useAsync(loadReferenceData, []);
+
+  const exportCsv = useMutation(() => adminApi.exportRosterCsv(courseId));
 
   if (loading) return <Loading label="Loading roster" />;
 
@@ -46,7 +57,21 @@ export default function AdminCourseRoster() {
         eyebrow="Roster"
         title={data.course_title}
         lede="Everyone whose department and seniority reaches this course, and how far each has moved."
+        action={
+          <Button
+            variant="ghost"
+            onClick={exportCsv.run}
+            disabled={exportCsv.busy || data.students.length === 0}
+          >
+            <Download size={15} />
+            {exportCsv.busy ? "Preparing" : "Export CSV"}
+          </Button>
+        }
       />
+
+      {exportCsv.error && (
+        <div className="form-error">{exportCsv.error.message}</div>
+      )}
 
       {data.students.length === 0 ? (
         <EmptyState

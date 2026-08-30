@@ -12,9 +12,12 @@ from app.models.user import User
 
 from app.schemas.certificate import CertificateRegistryItem
 from app.schemas.certificate import CertificateResponse
+from app.schemas.certificate import CertificateVerification
 
 from app.services.certificate_service import get_user_certificates
 from app.services.certificate_service import list_all_certificates
+from app.services.certificate_service import verify_certificate
+from app.services.csv_export import csv_response
 
 
 router = APIRouter(tags=["Certificates"])
@@ -37,6 +40,35 @@ def my_certificates(
         }
         for certificate in certificates
     ]
+
+
+@router.get(
+    "/verify/{certificate_number}",
+    response_model=CertificateVerification,
+    tags=["Public"]
+)
+def verify(
+    certificate_number: str,
+    db: Session = Depends(get_db)
+):
+    """Check a certificate by the number printed on it.
+
+    The only route in the application with no authentication, and
+    deliberately so: whoever is handed a certificate — a recruiter, an
+    auditor, a client — has to be able to check it without an account
+    here. Until now the number was decorative; nothing could confirm it.
+
+    The response carries only what the certificate itself already claims.
+    See CertificateVerification for why.
+    """
+    certificate = verify_certificate(db, certificate_number)
+
+    return {
+        "certificate_number": certificate.certificate_number,
+        "holder_name": certificate.user.name,
+        "course_title": certificate.course.title,
+        "issued_at": certificate.issued_at,
+    }
 
 
 @router.get(
@@ -63,3 +95,29 @@ def all_certificates(
         }
         for certificate in certificates
     ]
+
+
+@router.get("/admin/certificates.csv")
+def all_certificates_csv(
+    course_id: int | None = None,
+    current_user: User = Depends(require_admin),
+    db: Session = Depends(get_db)
+):
+    """The certificate registry as a spreadsheet — what gets attached to
+    a compliance report."""
+    certificates = list_all_certificates(db, course_id)
+
+    return csv_response(
+        "certificates.csv",
+        ["Certificate number", "Name", "Email", "Course", "Issued at"],
+        [
+            [
+                certificate.certificate_number,
+                certificate.user.name,
+                certificate.user.email,
+                certificate.course.title,
+                certificate.issued_at,
+            ]
+            for certificate in certificates
+        ],
+    )

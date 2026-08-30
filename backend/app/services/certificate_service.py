@@ -1,5 +1,7 @@
 from sqlalchemy.orm import Session
 
+from app.errors import NotFoundError
+
 from app.models.certificate import Certificate
 from app.models.chapter import Chapter
 from app.models.quiz import Quiz
@@ -116,6 +118,34 @@ def check_and_issue_certificate(
     db.refresh(certificate)
 
     return certificate, True
+
+
+def verify_certificate(
+    db: Session,
+    certificate_number: str
+) -> Certificate:
+    """Look up a certificate by the number printed on it.
+
+    This backs the one public, unauthenticated route in the application:
+    somebody handed a certificate needs to be able to check it without an
+    account here. The number is 64 bits of randomness, so it cannot be
+    guessed or walked — but it is also the only thing protecting the
+    lookup, which is why the response carries as little as it does.
+
+    A number that does not exist and one that is malformed both come back
+    as the same "not found", so the endpoint cannot be used to learn
+    anything about which numbers have been issued.
+    """
+    certificate = (
+        db.query(Certificate)
+        .filter(Certificate.certificate_number == certificate_number.strip())
+        .first()
+    )
+
+    if certificate is None:
+        raise NotFoundError("No certificate found with that number")
+
+    return certificate
 
 
 def get_user_certificates(

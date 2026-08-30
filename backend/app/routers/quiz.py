@@ -21,6 +21,7 @@ from app.schemas.quiz import SubmitQuizRequest
 
 from app.services import quiz_service
 from app.services.certificate_service import check_and_issue_certificate
+from app.services.csv_export import csv_response
 
 
 router = APIRouter(tags=["Quizzes"])
@@ -83,6 +84,44 @@ def quiz_results(
     db: Session = Depends(get_db)
 ):
     return quiz_service.get_quiz_results_admin(db, quiz_id)
+
+
+@router.get("/admin/quizzes/{quiz_id}/results.csv")
+def quiz_results_csv(
+    quiz_id: int,
+    current_user: User = Depends(require_admin),
+    db: Session = Depends(get_db)
+):
+    """Everyone's result on this quiz, as a spreadsheet.
+
+    `Version attempted` is worth keeping in the export: a quiz can be
+    edited without erasing past attempts, so a row can be a pass against
+    questions that are no longer being asked.
+    """
+    results = quiz_service.get_quiz_results_admin(db, quiz_id)
+
+    return csv_response(
+        f"{results['quiz_title']} results.csv",
+        [
+            "Name",
+            "Attempts",
+            "Best score",
+            "Passed",
+            "Version attempted",
+            "Current version",
+        ],
+        [
+            [
+                row["user_name"],
+                row["attempts_count"],
+                row["best_score"],
+                row["passed"],
+                row["latest_version_attempted"],
+                results["version"],
+            ]
+            for row in results["rows"]
+        ],
+    )
 
 
 # ----------------------------------------------------- student: attempt ---

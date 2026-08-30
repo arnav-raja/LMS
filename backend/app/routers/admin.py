@@ -30,6 +30,7 @@ from app.schemas.tracking import StudentSummary
 from app.services.admin_service import get_dashboard
 from app.services.audit_service import list_entries as list_audit_entries
 from app.services.chapter_service import list_all_chapters_admin
+from app.services.csv_export import csv_response
 from app.services.admin_service import list_all_users
 from app.services.admin_service import create_user
 from app.services.admin_service import update_user
@@ -198,3 +199,41 @@ def course_students(
     db: Session = Depends(get_db)
 ):
     return get_course_roster(db, course_id)
+
+
+@router.get("/courses/{course_id}/students.csv")
+def course_students_csv(
+    course_id: int,
+    current_user = Depends(require_admin),
+    db: Session = Depends(get_db)
+):
+    """Who can reach this course and how far through it they are — the
+    report that answers "has everyone done their training yet"."""
+    roster = get_course_roster(db, course_id)
+
+    return csv_response(
+        f"{roster['course_title']} roster.csv",
+        [
+            "Name",
+            "Email",
+            "Department",
+            "Seniority",
+            "Lessons completed",
+            "Lessons total",
+            "Percentage",
+            "Last activity",
+        ],
+        [
+            [
+                student["name"],
+                student["email"],
+                student["department"],
+                student["seniority"],
+                student["completed_subchapters"],
+                student["total_subchapters"],
+                student["percentage"],
+                student["last_activity"],
+            ]
+            for student in roster["students"]
+        ],
+    )

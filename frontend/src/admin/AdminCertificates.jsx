@@ -1,7 +1,9 @@
 import { useState } from "react";
 import { certificateApi, courseApi } from "../api/endpoints";
 import { useAsync } from "../api/useAsync";
-import { EmptyState, ErrorPanel, Loading, PageTitle } from "../components/ui";
+import { Download } from "lucide-react";
+import { useMutation } from "../api/useMutation";
+import { Button, EmptyState, ErrorPanel, Loading, PageTitle } from "../components/ui";
 
 const formatDate = (value) => {
   if (!value) return "";
@@ -24,6 +26,10 @@ export default function AdminCertificates() {
     reload,
   } = useAsync(() => certificateApi.all(courseFilter || undefined), [courseFilter]);
 
+  const exportCsv = useMutation(() =>
+    certificateApi.exportCsv(courseFilter || undefined)
+  );
+
   if (loading && !certificates) return <Loading label="Loading certificates" />;
   if (error) return <ErrorPanel error={error} onRetry={reload} />;
 
@@ -43,7 +49,21 @@ export default function AdminCertificates() {
         eyebrow="Certificates"
         title="Certificate registry"
         lede="Every certificate issued platform-wide, generated automatically the moment a student passes every chapter and quiz in a course."
+        action={
+          <Button
+            variant="ghost"
+            onClick={exportCsv.run}
+            disabled={exportCsv.busy || !(certificates || []).length}
+          >
+            <Download size={15} />
+            {exportCsv.busy ? "Preparing" : "Export CSV"}
+          </Button>
+        }
       />
+
+      {exportCsv.error && (
+        <div className="form-error">{exportCsv.error.message}</div>
+      )}
 
       <div className="chip-row">
         <select

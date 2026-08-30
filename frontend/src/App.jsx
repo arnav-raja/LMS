@@ -12,6 +12,7 @@ import CoursePlayer from "./student/CoursePlayer";
 import StudentQuizzes from "./student/StudentQuizzes";
 import QuizTake from "./student/QuizTake";
 import StudentCertificates from "./student/StudentCertificates";
+import VerifyCertificate from "./public/VerifyCertificate";
 
 // The admin pages are the bulk of the application and most people here
 // are students, who can never open any of them. Loading them lazily keeps
@@ -36,10 +37,26 @@ function Routing() {
   const { isAuthenticated, isAdmin, loading } = useAuth();
 
   if (loading) return <Loading label="Signing you in" />;
-  if (!isAuthenticated) return <LoginPage />;
+
+  // Checking a certificate is deliberately outside the sign-in wall.
+  // Whoever is handed one — a recruiter, an auditor — has no account here,
+  // so this must resolve before `isAuthenticated` is consulted.
+  if (!isAuthenticated) {
+    return (
+      <Routes>
+        <Route path="/verify" element={<VerifyCertificate />} />
+        <Route path="/verify/:certificateNumber" element={<VerifyCertificate />} />
+        <Route path="*" element={<LoginPage />} />
+      </Routes>
+    );
+  }
 
   return (
     <Routes>
+      {/* Available signed in too, so an admin can check a number without
+          signing out first. */}
+      <Route path="/verify" element={<VerifyCertificate />} />
+      <Route path="/verify/:certificateNumber" element={<VerifyCertificate />} />
       <Route element={<Shell />}>
         {/* Admins land on their dashboard; students land on their learning. */}
         <Route index element={isAdmin ? <Navigate to="/admin" replace /> : <StudentDashboard />} />

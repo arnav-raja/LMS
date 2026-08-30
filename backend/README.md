@@ -168,6 +168,49 @@ list is about 140 bytes per account, so roughly 110 KB at 800 accounts.
 Somewhere past a few thousand, paginate `/admin/users` and
 `/admin/students`; nothing else on the API grows with headcount.
 
+## Certificate verification
+
+`GET /verify/{certificate_number}` is the only route in the application
+with no authentication, and deliberately so. Whoever is handed a
+certificate — a recruiter, an auditor, a client — has no account here, and
+until this existed the number printed on every certificate was decorative:
+nothing could confirm it meant anything.
+
+The number is 64 bits of randomness, so it cannot be guessed or walked,
+but it is also the only thing protecting the lookup. The response
+therefore carries the least that is still useful — holder's name, course,
+date, number — and nothing else. No email, no account id, no scores, no
+department, none of which a person checking a certificate needs.
+
+An unknown number and a malformed one give the same answer, so the route
+cannot be used to learn anything about which numbers exist. Deleting an
+account takes its certificates with it, so its numbers stop verifying.
+
+The frontend serves it at `/verify` and `/verify/{number}`, resolved
+before the sign-in wall in `App.jsx`.
+
+## Exports
+
+Every admin report has a `.csv` twin, because all of them eventually have
+to leave the application — into a spreadsheet, an email, an audit.
+
+| Report | CSV |
+| --- | --- |
+| Course roster | `GET /admin/courses/{id}/students.csv` |
+| Quiz results | `GET /admin/quizzes/{id}/results.csv` |
+| Certificate registry | `GET /admin/certificates.csv` |
+
+Two details in `app/services/csv_export.py` worth not undoing:
+
+- The file is written with the `csv` module, not by joining commas. Course
+  titles and people's names contain commas and quotes, and hand-joining
+  silently corrupts exactly the rows that matter.
+- Filenames are reduced to ASCII. They are built from titles an admin
+  types, and header values encode as latin-1 — a course called
+  "Sicherheit für Alle" would otherwise raise while building the response.
+  Only the filename is reduced; the file's contents are UTF-8 and keep
+  every character, with a BOM so Excel on Windows reads them correctly.
+
 ## Security notes
 
 **Sign-in is rate limited** per identifier — five failures in fifteen

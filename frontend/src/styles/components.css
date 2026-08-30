@@ -1029,3 +1029,52 @@
   font-size: 13.5px;
   color: #7d3320;
 }
+
+/* ---------------------------------------------------- certificate check --
+   The public verification page. Reachable without an account, so it
+   borrows the sign-in screen's frame rather than the app shell. */
+
+.verify-card {
+  max-width: 30rem;
+}
+
+.verify-lede {
+  margin-bottom: var(--space-4);
+  text-align: left;
+}
+
+.verify-result {
+  display: flex;
+  gap: var(--space-3);
+  align-items: flex-start;
+  margin-top: var(--space-4);
+  padding: var(--space-4);
+  border-radius: var(--radius-md);
+  text-align: left;
+}
+
+.verify-result-valid {
+  background: rgba(46, 125, 50, 0.08);
+  border: 1px solid rgba(46, 125, 50, 0.35);
+  color: #1b5e20;
+}
+
+.verify-result-invalid {
+  background: rgba(183, 28, 28, 0.06);
+  border: 1px solid rgba(183, 28, 28, 0.3);
+  color: #8e1b1b;
+}
+
+.verify-headline {
+  font-weight: 600;
+  margin-bottom: var(--space-2);
+}
+
+.verify-detail {
+  margin: 0 0 var(--space-2);
+  line-height: 1.5;
+}
+
+.verify-result code {
+  word-break: break-all;
+}
