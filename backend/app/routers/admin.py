@@ -14,6 +14,7 @@ from app.constants import Seniority
 
 from app.errors import ConflictError
 
+from app.schemas.admin import AuditEntryResponse
 from app.schemas.admin import DashboardResponse
 from app.schemas.admin import DepartmentOption
 from app.schemas.admin import RoleOption
@@ -26,6 +27,7 @@ from app.schemas.tracking import StudentProgressResponse
 from app.schemas.tracking import StudentSummary
 
 from app.services.admin_service import get_dashboard
+from app.services.audit_service import list_entries as list_audit_entries
 from app.services.admin_service import list_all_users
 from app.services.admin_service import create_user
 from app.services.admin_service import update_user
@@ -84,6 +86,7 @@ def add_user(
 ):
     return create_user(
         db=db,
+        actor=current_user,
         name=request.name,
         username=request.username,
         email=request.email,
@@ -103,6 +106,7 @@ def edit_user(
 ):
     return update_user(
         db=db,
+        actor=current_user,
         user_id=user_id,
         name=request.name,
         username=request.username,
@@ -130,9 +134,23 @@ def remove_user(
     # `removed` says what went with the account — progress, quiz attempts
     # and certificates all cascade. The admin is told, because a deleted
     # certificate is a deleted record of something someone earned.
-    removed = delete_user(db, user_id)
+    removed = delete_user(db, current_user, user_id)
 
     return {"deleted": True, "removed": removed}
+
+
+@router.get("/audit", response_model=list[AuditEntryResponse])
+def audit_log(
+    limit: int = 100,
+    current_user = Depends(require_admin),
+    db: Session = Depends(get_db)
+):
+    """Recent administrative actions on accounts, newest first.
+
+    Admin-only, and append-only: there is no route that edits or removes
+    an entry, deliberately.
+    """
+    return list_audit_entries(db, limit=min(limit, 500))
 
 
 @router.get("/students", response_model=list[StudentSummary])

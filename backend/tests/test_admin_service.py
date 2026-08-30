@@ -19,11 +19,29 @@ def make_user(db_session):
     return user
 
 
+def make_admin(db_session):
+    """Every edit is now recorded against whoever made it, so these need
+    an actor to attribute the audit entry to."""
+    admin = User(
+        name="Grace Hopper",
+        username="grace",
+        email="grace@example.com",
+        password_hash=hash_password("password"),
+        role="admin",
+    )
+    db_session.add(admin)
+    db_session.commit()
+    db_session.refresh(admin)
+    return admin
+
+
 def test_update_user_can_clear_optional_profile_fields(db_session):
     user = make_user(db_session)
+    admin = make_admin(db_session)
 
     updated = update_user(
         db=db_session,
+        actor=admin,
         user_id=user.id,
         name=None,
         username=None,
@@ -42,9 +60,11 @@ def test_update_user_can_clear_optional_profile_fields(db_session):
 
 def test_update_user_preserves_omitted_profile_fields(db_session):
     user = make_user(db_session)
+    admin = make_admin(db_session)
 
     updated = update_user(
         db=db_session,
+        actor=admin,
         user_id=user.id,
         name="Ada Byron",
         username=None,

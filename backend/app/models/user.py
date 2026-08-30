@@ -64,6 +64,21 @@ class User(Base):
         nullable=False
     )
 
+    # Stamped into every access token this account is issued, and checked
+    # on every request. Bumping it makes all existing tokens stop working
+    # immediately.
+    #
+    # Without it, changing the password of a compromised account did not
+    # lock the intruder out: their token stayed valid until it expired on
+    # its own, which is up to ACCESS_TOKEN_EXPIRE_MINUTES later — eight
+    # hours in the deployed configuration.
+    token_version = Column(
+        Integer,
+        nullable=False,
+        default=1,
+        server_default="1"
+    )
+
     role = Column(
         String(50),
         nullable=False,

@@ -45,6 +45,22 @@ class ConflictError(DomainError):
     default_detail = "That change conflicts with data that already exists"
 
 
+class InvalidInputError(DomainError):
+    """The request is structurally valid but breaks a rule the schema
+    cannot express — a password that is too weak, for instance. Pydantic
+    catches shape; this catches policy."""
+
+    status_code = 400
+    default_detail = "That value is not allowed"
+
+
+class TooManyAttemptsError(DomainError):
+    """The caller is being rate limited."""
+
+    status_code = 429
+    default_detail = "Too many attempts. Try again shortly."
+
+
 class PermissionDeniedError(DomainError):
     """The caller is signed in but is not allowed to do this: not an admin,
     no access to the course, or trying to open a lesson still locked."""

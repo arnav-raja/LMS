@@ -125,7 +125,51 @@ Deleting is different from editing, and still destructive on purpose:
 deleting a course removes its content and every student's progress
 against it, and deleting an account removes that person's progress,
 attempts and certificates. The delete endpoint returns counts of what went
-with it.
+with it, and the deletion is recorded in the audit log.
+
+## Security notes
+
+**Sign-in is rate limited** per identifier — five failures in fifteen
+minutes and that identifier is refused for the rest of the window, even
+with the correct password. Attempts are counted in the `login_attempts`
+table rather than in memory, so the limit survives a restart and holds
+across instances. It is per identifier, not per IP, because an attacker
+can change IP freely but cannot change which account they are trying to
+get into; the cost is that someone else's guessing can lock a real user
+out briefly, which is why the window is short.
+
+**Access tokens carry the account's `token_version`**, and it is checked
+on every request. Changing a password or a role bumps it, which makes
+every token already issued to that account stop working immediately.
+Without this, resetting the password of a compromised account did not
+lock the intruder out — their token stayed valid until it expired on its
+own, up to eight hours later.
+
+**The token is still in `localStorage`, deliberately.** The usual argument
+for moving it to an httpOnly cookie is XSS, but this frontend renders
+everything through React text nodes and uses `dangerouslySetInnerHTML`
+nowhere, so there is no injection point to steal it through. Moving to
+cookies would also trade that for CSRF: the frontend and API are on
+different sites, so the cookie would need `SameSite=None`, which is
+exactly the configuration that needs CSRF tokens to be safe. Revisit this
+decision if lesson content ever starts rendering as HTML — that would
+introduce the XSS vector this reasoning depends on not existing.
+
+The token payload carries only `sub`, `role` and `tv`. `role` is a
+convenience for the client and is never trusted for a permission
+decision: every request re-reads the account from the database.
+
+**Passwords** must be at least 10 characters and not obviously guessable
+(`app/services/password_policy.py`). The rule applies when a password is
+set or changed, never to one already stored, so it does not lock existing
+accounts out. Every account here is created by an admin on someone else's
+behalf, which is exactly the situation that produces `Welcome123`.
+
+**Administrative actions on accounts are recorded** in `audit_entries` —
+who did it, to which account, what changed, and when. Readable at
+`GET /admin/audit`, and in the app under Students → Activity. Append-only:
+no route edits or removes an entry, and a password reset is recorded as
+having happened without the password itself.
 
 ## Deployment
 

@@ -15,7 +15,9 @@ import sys
 
 from app.constants import Role
 from app.database import SessionLocal
+from app.errors import InvalidInputError
 from app.models.user import User
+from app.services.password_policy import validate_password
 from app.utils.security import hash_password
 
 
@@ -70,8 +72,13 @@ def main():
             print("Passwords did not match.")
             sys.exit(1)
 
-        if not password:
-            print("A password is required.")
+        # The same rule the API applies. This script creates the very
+        # first administrator, so it is the last account that should be
+        # allowed a weak password.
+        try:
+            validate_password(password)
+        except InvalidInputError as error:
+            print(error.detail)
             sys.exit(1)
 
         user = User(

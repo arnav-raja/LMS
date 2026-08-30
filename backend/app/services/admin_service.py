@@ -12,6 +12,9 @@ from app.models.certificate import Certificate
 from app.models.progress import Progress
 from app.models.quiz import QuizAttempt
 
+from app.services import audit_service
+from app.services.password_policy import validate_password
+
 from app.utils.security import hash_password
 
 
@@ -55,6 +58,7 @@ def list_all_users(
 
 def create_user(
     db: Session,
+    actor: User,
     name: str,
     username: str,
     email: str,
@@ -63,6 +67,8 @@ def create_user(
     department: str | None,
     seniority: str | None
 ):
+    validate_password(password)
+
     if email and db.query(User).filter(User.email == email).first():
         raise ConflictError("Email already registered")
 
@@ -80,6 +86,17 @@ def create_user(
     )
 
     db.add(user)
+    db.flush()
+
+    audit_service.record(
+        db,
+        actor=actor,
+        action=audit_service.USER_CREATED,
+        target_type="user",
+        target_id=user.id,
+        summary=f"Created {role} account '{username}'",
+    )
+
     db.commit()
     db.refresh(user)
 
@@ -88,6 +105,7 @@ def create_user(
 
 def update_user(
     db: Session,
+    actor: User,
     user_id: int,
     name: str | None,
     username: str | None,
@@ -103,30 +121,70 @@ def update_user(
     if user is None:
         raise NotFoundError("User not found")
 
+    if password:
+        # Checked before anything is written, so a rejected password does
+        # not leave the other edits in the same request half applied.
+        validate_password(password)
+
+    original_role = user.role
+    original_username = user.username
+
+    # What actually changed, for the audit entry. Values are recorded,
+    # except the password — that one is noted as having happened and
+    # nothing more.
+    changes: dict[str, object] = {}
+
     if username is not None and username != user.username:
         if db.query(User).filter(User.username == username).first():
             raise ConflictError("Username already taken")
         user.username = username
+        changes["username"] = username
 
     if "email" in provided_fields and email != user.email:
         if email and db.query(User).filter(User.email == email).first():
             raise ConflictError("Email already registered")
         user.email = email
+        changes["email"] = email
 
-    if name is not None:
+    if name is not None and name != user.name:
         user.name = name
+        changes["name"] = name
 
     if password:
         user.password_hash = hash_password(password)
+        changes["password"] = True
 
-    if role is not None:
+    if role is not None and role != user.role:
         user.role = role
+        changes["role"] = role
 
-    if "department" in provided_fields:
+    if "department" in provided_fields and department != user.department:
         user.department = department
+        changes["department"] = department
 
-    if "seniority" in provided_fields:
+    if "seniority" in provided_fields and seniority != user.seniority:
         user.seniority = seniority
+        changes["seniority"] = seniority
+
+    # A new password or a changed role invalidates every token already
+    # issued to this account. Resetting the password of a compromised
+    # account has to lock the intruder out now, not whenever their token
+    # happens to expire.
+    if password or (role is not None and role != original_role):
+        user.token_version += 1
+
+    if changes:
+        audit_service.record(
+            db,
+            actor=actor,
+            action=audit_service.USER_UPDATED,
+            target_type="user",
+            target_id=user.id,
+            summary=(
+                f"Edited account '{original_username}': "
+                f"{audit_service.describe_user_changes(changes)}"
+            ),
+        )
 
     db.commit()
     db.refresh(user)
@@ -136,6 +194,7 @@ def update_user(
 
 def delete_user(
     db: Session,
+    actor: User,
     user_id: int
 ) -> dict[str, int]:
     """Delete an account and everything recorded against it.
@@ -171,6 +230,20 @@ def delete_user(
             .count()
         ),
     }
+
+    audit_service.record(
+        db,
+        actor=actor,
+        action=audit_service.USER_DELETED,
+        target_type="user",
+        target_id=user_id,
+        summary=(
+            f"Deleted account '{user.username}' "
+            f"({removed['certificates']} certificates, "
+            f"{removed['quiz_attempts']} quiz attempts, "
+            f"{removed['progress']} lessons completed)"
+        ),
+    )
 
     db.delete(user)
     db.commit()

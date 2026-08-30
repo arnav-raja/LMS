@@ -26,7 +26,7 @@ from app.models.quiz import QuizQuestion
 from app.models.subchapter import Subchapter
 from app.models.user import User
 
-from app.services.jwt_service import create_access_token
+from app.services.auth_service import issue_token_for
 from app.utils.security import hash_password
 
 
@@ -62,15 +62,14 @@ def client(db):
 # ------------------------------------------------------------- identities --
 
 def auth_headers(user: User) -> dict:
-    """A bearer header for this user, minted the same way login does."""
-    token = create_access_token(
-        {
-            "sub": str(user.id),
-            "email": user.email,
-            "role": user.role,
-        }
-    )
-    return {"Authorization": f"Bearer {token}"}
+    """A bearer header for this user.
+
+    Deliberately goes through the same helper the login route uses rather
+    than assembling claims by hand — a token minted here must carry
+    everything a real one does, including the account's token_version,
+    or these tests would not notice the day a new required claim appears.
+    """
+    return {"Authorization": f"Bearer {issue_token_for(user)}"}
 
 
 @pytest.fixture

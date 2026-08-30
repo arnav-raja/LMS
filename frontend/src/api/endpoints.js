@@ -78,7 +78,12 @@ export const adminApi = {
 
   updateUser: (userId, changes) => api.patch(`/admin/users/${userId}`, changes),
 
+  // Returns { deleted, removed } — `removed` counts the progress, quiz
+  // attempts and certificates that went with the account.
   deleteUser: (userId) => api.delete(`/admin/users/${userId}`),
+
+  // Append-only record of who changed which account, newest first.
+  audit: () => api.get("/admin/audit"),
 };
 
 /* ------------------------------------------------------------ learning --- */

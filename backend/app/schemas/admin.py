@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from pydantic import BaseModel
 from pydantic import EmailStr
 
@@ -52,3 +54,18 @@ class UpdateUserRequest(BaseModel):
     role: Role | None = None
     department: Department | None = None
     seniority: Seniority | None = None
+
+
+class AuditEntryResponse(BaseModel):
+    """One administrative action, as shown on the audit page."""
+    id: int
+    actor_id: int | None = None
+    actor_name: str
+    action: str
+    target_type: str
+    target_id: int | None = None
+    summary: str
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
