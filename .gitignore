@@ -1,0 +1,25 @@
+# Top-level ignores only.
+#
+# backend/.gitignore and frontend/.gitignore already cover the things
+# specific to each — .env, node_modules, dist, __pycache__, and so on.
+# This file catches what falls between them: junk your operating system
+# and editor leave lying around anywhere in the tree.
+
+# Operating system
+.DS_Store
+.DS_Store?
+._*
+Thumbs.db
+ehthumbs.db
+desktop.ini
+
+# Editors — settings here are personal, not the project's. Someone who
+# clones this should get their own setup, not yours.
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Stray output
+*.log
