@@ -99,6 +99,34 @@ models. If you change a model without writing a migration, that test fails
 — nothing else in the suite would notice, because the other tests build
 their schema from the models directly.
 
+## Editing content without destroying progress
+
+The course and quiz builders both send an `id` for anything that already
+exists, and `null` for anything new. That id is what identifies a chapter,
+lesson, question or option across a save.
+
+This matters more than it looks. Both builders used to match by
+**position**, so reordering two chapters handed each one's completion
+history to the other, and saving a quiz deleted it and built a new one,
+taking every past attempt with it. Neither failed loudly; students simply
+had the wrong progress, or none.
+
+So if you touch either builder:
+
+- keep sending the ids, on the client as well as the server — the server
+  cannot tell "moved" from "replaced" without them;
+- an id that does not belong to the course, chapter or quiz being edited
+  is rejected, and rejected *before* anything is written, so a bad save
+  leaves the content exactly as it was;
+- `tests/api/test_course_builder_identity.py` and
+  `tests/api/test_quiz_versioning.py` exist to hold this in place.
+
+Deleting is different from editing, and still destructive on purpose:
+deleting a course removes its content and every student's progress
+against it, and deleting an account removes that person's progress,
+attempts and certificates. The delete endpoint returns counts of what went
+with it.
+
 ## Deployment
 
 See [DEPLOYMENT.md](DEPLOYMENT.md) for the full free-tier deployment guide

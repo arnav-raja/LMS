@@ -221,7 +221,10 @@ def test_delete_user_succeeds(client, admin_headers, student):
     )
 
     assert response.status_code == 200
-    assert response.json() == {"deleted": True}
+    assert response.json() == {
+        "deleted": True,
+        "removed": {"progress": 0, "quiz_attempts": 0, "certificates": 0},
+    }
 
     gone = client.get("/admin/users", headers=admin_headers).json()
     assert student.username not in [user["username"] for user in gone]

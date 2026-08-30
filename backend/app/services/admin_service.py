@@ -8,7 +8,9 @@ from app.errors import NotFoundError
 
 from app.models.user import User
 from app.models.course import Course
+from app.models.certificate import Certificate
 from app.models.progress import Progress
+from app.models.quiz import QuizAttempt
 
 from app.utils.security import hash_password
 
@@ -135,15 +137,42 @@ def update_user(
 def delete_user(
     db: Session,
     user_id: int
-) -> None:
+) -> dict[str, int]:
+    """Delete an account and everything recorded against it.
+
+    Their progress, quiz attempts and certificates go too, by database
+    cascade. That is destructive and cannot be undone — a certificate is
+    a record of something the person actually achieved — so the counts are
+    returned and shown to the admin who asked for the deletion.
+
+    Before the cascades existed, this could not delete anyone who had ever
+    taken a quiz at all: the foreign keys refused, and the admin got a
+    vague "may still have related records" message with no way forward.
+    """
     user = db.get(User, user_id)
 
     if user is None:
         raise NotFoundError("User not found")
 
-    # Remove their progress history first — the database won't let us
-    # delete the account itself while rows still point at it.
-    db.query(Progress).filter(Progress.user_id == user_id).delete()
+    removed = {
+        "progress": (
+            db.query(Progress)
+            .filter(Progress.user_id == user_id)
+            .count()
+        ),
+        "quiz_attempts": (
+            db.query(QuizAttempt)
+            .filter(QuizAttempt.user_id == user_id)
+            .count()
+        ),
+        "certificates": (
+            db.query(Certificate)
+            .filter(Certificate.user_id == user_id)
+            .count()
+        ),
+    }
 
     db.delete(user)
     db.commit()
+
+    return removed

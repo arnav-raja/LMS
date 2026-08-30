@@ -6,11 +6,16 @@ from pydantic import BaseModel
 # ---------------------------------------------------------- admin: build --
 
 class QuizOptionInput(BaseModel):
+    # As with chapters, an id means "this is the existing one, edited";
+    # null means "new". Options keep their ids so a QuizAnswer that points
+    # at one still points at the same answer after the quiz is edited.
+    id: int | None = None
     option_text: str
     is_correct: bool = False
 
 
 class QuizQuestionInput(BaseModel):
+    id: int | None = None
     question_text: str
     options: list[QuizOptionInput]
 
@@ -47,6 +52,7 @@ class QuizAdminResponse(BaseModel):
     chapter_id: int
     title: str
     passing_score: int
+    version: int = 1
     questions: list[QuizQuestionAdminResponse]
 
     class Config:
@@ -62,6 +68,7 @@ class AdminQuizListItem(BaseModel):
     course_id: int
     course_title: str
     passing_score: int
+    version: int = 1
     question_count: int
     attempts_count: int
     pass_count: int
@@ -73,11 +80,15 @@ class QuizResultRow(BaseModel):
     attempts_count: int
     best_score: float
     passed: bool
+    # Lower than the quiz's current version means this result was earned
+    # against questions that have since been edited.
+    latest_version_attempted: int = 1
 
 
 class QuizResultsResponse(BaseModel):
     quiz_id: int
     quiz_title: str
+    version: int = 1
     rows: list[QuizResultRow]
 
 

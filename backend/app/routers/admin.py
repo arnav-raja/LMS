@@ -1,7 +1,6 @@
 from fastapi import APIRouter
 from fastapi import Depends
 
-from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -128,19 +127,12 @@ def remove_user(
     if current_user.id == user_id:
         raise ConflictError("You cannot delete your own account")
 
-    try:
-        delete_user(db, user_id)
-    except IntegrityError:
-        # Quiz attempts and certificates still reference this account and
-        # have no cascade yet, so the database refuses the delete. Only that
-        # case is caught — a genuine bug must surface as a 500, not be
-        # reported to the admin as their mistake.
-        db.rollback()
-        raise ConflictError(
-            "Could not delete this user — they may still have related records."
-        )
+    # `removed` says what went with the account — progress, quiz attempts
+    # and certificates all cascade. The admin is told, because a deleted
+    # certificate is a deleted record of something someone earned.
+    removed = delete_user(db, user_id)
 
-    return {"deleted": True}
+    return {"deleted": True, "removed": removed}
 
 
 @router.get("/students", response_model=list[StudentSummary])

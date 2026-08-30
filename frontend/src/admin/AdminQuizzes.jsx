@@ -11,8 +11,16 @@ import {
   PageTitle,
 } from "../components/ui";
 
-const blankOption = () => ({ option_text: "", is_correct: false });
-const blankQuestion = () => ({ question_text: "", options: [blankOption(), blankOption()] });
+// As in the course builder, `id` marks a question or option that already
+// exists so a save edits it in place instead of replacing the quiz. The
+// quiz row then survives the edit, and so does every attempt recorded
+// against it. New items carry null.
+const blankOption = () => ({ id: null, option_text: "", is_correct: false });
+const blankQuestion = () => ({
+  id: null,
+  question_text: "",
+  options: [blankOption(), blankOption()],
+});
 
 function shuffleOptions(options) {
   const shuffled = [...options];
@@ -93,8 +101,10 @@ function QuizBuilder({ chapters, existingQuiz, defaultChapterId, onClose, onSave
   const [questions, setQuestions] = useState(
     existingQuiz?.questions?.length
       ? existingQuiz.questions.map((q) => ({
+          id: q.id,
           question_text: q.question_text,
           options: q.options.map((o) => ({
+            id: o.id,
             option_text: o.option_text,
             is_correct: o.is_correct,
           })),
@@ -140,10 +150,13 @@ function QuizBuilder({ chapters, existingQuiz, defaultChapterId, onClose, onSave
     if (!block) return;
     setTitle(block.title);
     setQuestions(
+      // Pasted questions replace whatever was there, so they carry no ids
+      // — the API creates them and removes the ones they replaced.
       block.questions.length
         ? block.questions.map((q) => ({
+            id: null,
             question_text: q.question_text,
-            options: q.options.map((o) => ({ ...o })),
+            options: q.options.map((o) => ({ ...o, id: null })),
           }))
         : [blankQuestion()]
     );
@@ -198,10 +211,15 @@ function QuizBuilder({ chapters, existingQuiz, defaultChapterId, onClose, onSave
       title: title.trim(),
       passing_score: Number(passingScore) || 70,
       questions: questions.map((q) => ({
+        id: q.id ?? null,
         question_text: q.question_text.trim(),
         options: q.options
           .filter((o) => o.option_text.trim())
-          .map((o) => ({ option_text: o.option_text.trim(), is_correct: o.is_correct })),
+          .map((o) => ({
+            id: o.id ?? null,
+            option_text: o.option_text.trim(),
+            is_correct: o.is_correct,
+          })),
       })),
     };
 
@@ -590,14 +608,27 @@ export default function AdminQuizzes() {
                 </tr>
               </thead>
               <tbody>
-                {results.rows.map((row) => (
-                  <tr key={row.user_id}>
-                    <td className="table-title-cell">{row.user_name}</td>
-                    <td>{row.attempts_count}</td>
-                    <td>{row.best_score}%</td>
-                    <td>{row.passed ? "Yes" : "Not yet"}</td>
-                  </tr>
-                ))}
+                {results.rows.map((row) => {
+                  // Editing a quiz no longer wipes past attempts, so a
+                  // result can predate the questions currently being
+                  // asked. Say so rather than presenting it as current.
+                  const stale = row.latest_version_attempted < results.version;
+                  return (
+                    <tr key={row.user_id}>
+                      <td className="table-title-cell">
+                        {row.user_name}
+                        {stale && (
+                          <span className="muted" title="This result was earned before the quiz was edited">
+                            {" "}· v{row.latest_version_attempted}
+                          </span>
+                        )}
+                      </td>
+                      <td>{row.attempts_count}</td>
+                      <td>{row.best_score}%</td>
+                      <td>{row.passed ? "Yes" : "Not yet"}</td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           )}

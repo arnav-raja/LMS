@@ -38,7 +38,7 @@ def create_quiz(
     current_user: User = Depends(require_admin),
     db: Session = Depends(get_db)
 ):
-    return quiz_service.create_or_replace_quiz(
+    return quiz_service.save_quiz(
         db=db,
         chapter_id=chapter_id,
         request=request

@@ -155,45 +155,160 @@ def get_quiz_summary_for_chapter(
 
 # --------------------------------------------------------------- admin ----
 
-def create_or_replace_quiz(
+def _sync_options(db: Session, question: QuizQuestion, options_data) -> bool:
+    """Bring one question's options in line with the request. Returns
+    whether anything actually changed."""
+    existing = {option.id: option for option in question.options}
+    kept_ids: set[int] = set()
+    changed = False
+
+    for option_data in options_data:
+        if option_data.id is None:
+            db.add(
+                QuizOption(
+                    question_id=question.id,
+                    option_text=option_data.option_text,
+                    is_correct=option_data.is_correct
+                )
+            )
+            changed = True
+            continue
+
+        option = existing.get(option_data.id)
+
+        if option is None:
+            raise NotFoundError(
+                f"Option {option_data.id} is not part of this question"
+            )
+
+        if (
+            option.option_text != option_data.option_text
+            or option.is_correct != option_data.is_correct
+        ):
+            option.option_text = option_data.option_text
+            option.is_correct = option_data.is_correct
+            changed = True
+
+        kept_ids.add(option.id)
+
+    for option_id, option in existing.items():
+        if option_id not in kept_ids:
+            db.delete(option)
+            changed = True
+
+    return changed
+
+
+def save_quiz(
     db: Session,
     chapter_id: int,
     request
 ) -> Quiz:
-    """A chapter has exactly one quiz. Saving from the builder replaces
-    it wholesale, which also clears any previous attempts recorded
-    against the old version — the questions are different now."""
+    """Create a chapter's quiz, or edit the one it already has.
+
+    The quiz row itself is never deleted on an edit, so every attempt
+    recorded against it survives. This used to delete and recreate the
+    whole quiz, which cascaded away every student's attempt history —
+    a student who had passed simply no longer had.
+
+    Questions and options are matched by id, exactly as chapters and
+    subchapters are. When any of them actually change, the quiz's
+    `version` is bumped, so an attempt recorded against version 1 is
+    still identifiable as having answered different questions.
+    """
     chapter = db.get(Chapter, chapter_id)
 
     if chapter is None:
         raise NotFoundError("Chapter not found")
 
-    existing = (
+    quiz = (
         db.query(Quiz)
         .filter(Quiz.chapter_id == chapter_id)
         .first()
     )
 
-    if existing is not None:
-        db.delete(existing)
+    if quiz is None:
+        quiz = Quiz(
+            chapter_id=chapter_id,
+            title=request.title,
+            passing_score=request.passing_score,
+            version=1
+        )
+        db.add(quiz)
         db.flush()
+        _replace_all_questions(db, quiz, request.questions)
+        db.commit()
+        db.refresh(quiz)
+        return quiz
 
-    quiz = Quiz(
-        chapter_id=chapter_id,
-        title=request.title,
-        passing_score=request.passing_score
-    )
+    quiz.title = request.title
+    quiz.passing_score = request.passing_score
 
-    db.add(quiz)
-    db.flush()
+    existing_questions = {question.id: question for question in quiz.questions}
+    kept_ids: set[int] = set()
+    changed = False
 
-    for question_index, question_data in enumerate(
-        request.questions,
-        start=1
-    ):
+    for position, question_data in enumerate(request.questions, start=1):
+        if question_data.id is None:
+            question = QuizQuestion(
+                quiz_id=quiz.id,
+                question_number=position,
+                question_text=question_data.question_text
+            )
+            db.add(question)
+            db.flush()
+
+            for option_data in question_data.options:
+                db.add(
+                    QuizOption(
+                        question_id=question.id,
+                        option_text=option_data.option_text,
+                        is_correct=option_data.is_correct
+                    )
+                )
+
+            changed = True
+            continue
+
+        question = existing_questions.get(question_data.id)
+
+        if question is None:
+            raise NotFoundError(
+                f"Question {question_data.id} is not part of this quiz"
+            )
+
+        if (
+            question.question_text != question_data.question_text
+            or question.question_number != position
+        ):
+            question.question_text = question_data.question_text
+            question.question_number = position
+            changed = True
+
+        if _sync_options(db, question, question_data.options):
+            changed = True
+
+        kept_ids.add(question.id)
+
+    for question_id, question in existing_questions.items():
+        if question_id not in kept_ids:
+            db.delete(question)
+            changed = True
+
+    if changed:
+        quiz.version += 1
+
+    db.commit()
+    db.refresh(quiz)
+
+    return quiz
+
+
+def _replace_all_questions(db: Session, quiz: Quiz, questions_data) -> None:
+    for position, question_data in enumerate(questions_data, start=1):
         question = QuizQuestion(
             quiz_id=quiz.id,
-            question_number=question_index,
+            question_number=position,
             question_text=question_data.question_text
         )
 
@@ -208,11 +323,6 @@ def create_or_replace_quiz(
                     is_correct=option_data.is_correct
                 )
             )
-
-    db.commit()
-    db.refresh(quiz)
-
-    return quiz
 
 
 def get_quiz_admin_view(
@@ -277,6 +387,7 @@ def list_all_quizzes_admin(db: Session) -> list[dict]:
                 "course_id": course.id,
                 "course_title": course.title,
                 "passing_score": quiz.passing_score,
+                "version": quiz.version,
                 "question_count": len(quiz.questions),
                 "attempts_count": len(best_by_user),
                 "pass_count": len(passed_users)
@@ -326,13 +437,20 @@ def get_quiz_results_admin(
                 "user_name": user.name if user else "Unknown",
                 "attempts_count": len(user_attempts),
                 "best_score": max(a.score for a in user_attempts),
-                "passed": any(a.passed for a in user_attempts)
+                "passed": any(a.passed for a in user_attempts),
+                # The newest version this person actually answered. Lower
+                # than the quiz's current version means their result was
+                # earned against questions that have since been edited.
+                "latest_version_attempted": max(
+                    a.quiz_version for a in user_attempts
+                ),
             }
         )
 
     return {
         "quiz_id": quiz.id,
         "quiz_title": quiz.title,
+        "version": quiz.version,
         "rows": rows
     }
 
@@ -403,6 +521,9 @@ def submit_quiz(
         quiz_id=quiz_id,
         score=0,
         passed=False,
+        # Stamped now and never changed. If the quiz is edited later, this
+        # is what says the score was earned against different questions.
+        quiz_version=quiz.version,
         submitted_at=utc_now()
     )
 
