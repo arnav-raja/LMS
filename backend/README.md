@@ -127,6 +127,47 @@ against it, and deleting an account removes that person's progress,
 attempts and certificates. The delete endpoint returns counts of what went
 with it, and the deletion is recorded in the audit log.
 
+## Performance
+
+Endpoints that read a list must not issue one query per item in it. That
+mistake is invisible in tests with two rows and crippling in production,
+so `tests/api/test_query_counts.py` measures it directly: it builds a
+small dataset and a larger one, and fails if the query count grows
+between them.
+
+Four endpoints were doing exactly that, and the numbers were not close:
+
+| endpoint | before | after |
+| --- | --- | --- |
+| student dashboard | 7 → 31 with 7 courses | flat |
+| course roster | 5 → 17 with 13 students | flat |
+| student progress detail | 12 → 60 with 7 courses | flat |
+| course player | 15 → 27 for a longer course | flat |
+
+The batched helpers this needs — `get_subchapter_lock_maps`,
+`get_quiz_gate_maps`, `get_quiz_summaries_for_course`,
+`get_course_subchapter_sequences` — all take a list of ids and answer in a
+fixed number of queries. Prefer them over their single-course wrappers
+inside any loop.
+
+Watch for this on the client too. The admin Quizzes page used to build its
+chapter list by calling the course player's endpoint once per course —
+forty courses meant forty HTTP round trips, far more expensive than any
+of the database problems above. `GET /admin/chapters` replaced it.
+
+`tests/benchmark_scale.py` seeds a company-sized dataset (800 students, 40
+courses, ~54,000 progress rows) and times the heaviest pages. Run it with
+`python -m tests.benchmark_scale`; it builds and drops its own database.
+
+At that size everything lands in single-digit milliseconds, which is why
+there is **no pagination and no extra indexes**: `EXPLAIN` shows the
+planner choosing a sequential scan over the access-rule table because it
+holds barely a hundred rows, and an index there would be ceremony. The
+number worth watching is response size rather than query time — the user
+list is about 140 bytes per account, so roughly 110 KB at 800 accounts.
+Somewhere past a few thousand, paginate `/admin/users` and
+`/admin/students`; nothing else on the API grows with headcount.
+
 ## Security notes
 
 **Sign-in is rate limited** per identifier — five failures in fifteen

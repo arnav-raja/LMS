@@ -24,8 +24,11 @@ os.environ.setdefault("ALGORITHM", "HS256")
 os.environ.setdefault("ACCESS_TOKEN_EXPIRE_MINUTES", "30")
 os.environ.setdefault("ALLOWED_ORIGINS", "http://localhost:5173")
 
+from contextlib import contextmanager
+
 import pytest
 from sqlalchemy import create_engine
+from sqlalchemy import event
 from sqlalchemy.orm import sessionmaker
 
 from app.database import Base
@@ -91,3 +94,47 @@ def db_session(engine):
         session.close()
         transaction.rollback()
         connection.close()
+
+
+@pytest.fixture
+def count_queries(engine):
+    """Count the SQL statements a block of code actually issues.
+
+        with count_queries() as queries:
+            client.get("/me/dashboard", headers=headers)
+        assert queries.count < 15
+
+    The point is not the exact number, which will drift as the code
+    changes. It is that the number must not grow with the amount of data —
+    that is what separates "one query per course" from "one query".
+    An N+1 is invisible in a test with two rows in it, and crippling in
+    production; a bound like this is what makes it visible.
+    """
+
+    class Counter:
+        def __init__(self):
+            self.statements: list[str] = []
+
+        @property
+        def count(self) -> int:
+            return len(self.statements)
+
+        def report(self) -> str:
+            """The statements, for when a bound is broken and you need to
+            see which query is repeating."""
+            return "\n".join(f"  {sql.split(chr(10))[0][:110]}" for sql in self.statements)
+
+    @contextmanager
+    def _count():
+        counter = Counter()
+
+        def before_execute(conn, cursor, statement, parameters, context, many):
+            counter.statements.append(statement)
+
+        event.listen(engine, "before_cursor_execute", before_execute)
+        try:
+            yield counter
+        finally:
+            event.remove(engine, "before_cursor_execute", before_execute)
+
+    return _count

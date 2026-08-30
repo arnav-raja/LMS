@@ -1,4 +1,5 @@
 from sqlalchemy import and_
+from sqlalchemy import func
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
@@ -6,6 +7,7 @@ from app.constants import Role
 
 from app.errors import NotFoundError
 
+from app.models.chapter import Chapter
 from app.models.course import Course
 from app.models.course_access_rule import CourseAccessRule
 from app.models.progress import Progress
@@ -13,7 +15,8 @@ from app.models.user import User
 
 from app.services.access_service import get_accessible_courses
 from app.services.sequence_service import get_course_subchapter_sequence
-from app.services.sequence_service import get_subchapter_lock_map
+from app.services.sequence_service import get_course_subchapter_sequences
+from app.services.sequence_service import get_subchapter_lock_maps
 
 
 def list_students(
@@ -37,29 +40,52 @@ def get_student_progress_detail(
         raise NotFoundError("Student not found")
 
     courses = get_accessible_courses(db, user)
+    course_ids = [course.id for course in courses]
+
+    # All three of these used to be resolved inside the loop below, so the
+    # cost of this page grew with the size of the catalogue rather than
+    # with the student being looked at. The lock map alone was five or six
+    # queries per course.
+    sequences = get_course_subchapter_sequences(db, course_ids)
+    lock_maps = get_subchapter_lock_maps(db, user.id, course_ids)
+
+    # `course.chapters` is a lazy relationship, so reading it inside the
+    # loop was another query per course. One query for all of them here.
+    chapters_by_course: dict[int, list[Chapter]] = {
+        course_id: [] for course_id in course_ids
+    }
+
+    if course_ids:
+        for chapter in (
+            db.query(Chapter)
+            .filter(Chapter.course_id.in_(course_ids))
+            .order_by(Chapter.course_id, Chapter.chapter_number)
+            .all()
+        ):
+            chapters_by_course[chapter.course_id].append(chapter)
+
+    completed_at_by_subchapter = {
+        row.subchapter_id: row.completed_at
+        for row in (
+            db.query(Progress.subchapter_id, Progress.completed_at)
+            .filter(
+                Progress.user_id == user.id,
+                Progress.is_completed == True
+            )
+            .all()
+        )
+    }
 
     course_details = []
 
     for course in courses:
-        sequence = get_course_subchapter_sequence(db, course.id)
-        lock_map = get_subchapter_lock_map(db, user.id, course.id)
-
-        completed_at_by_subchapter = {
-            row.subchapter_id: row.completed_at
-            for row in (
-                db.query(Progress.subchapter_id, Progress.completed_at)
-                .filter(
-                    Progress.user_id == user.id,
-                    Progress.is_completed == True
-                )
-                .all()
-            )
-        }
+        sequence = sequences.get(course.id, [])
+        lock_map = lock_maps.get(course.id, {})
 
         chapters_by_id: dict[int, dict] = {}
         chapter_order: list[int] = []
 
-        for chapter in sorted(course.chapters, key=lambda c: c.chapter_number):
+        for chapter in chapters_by_course.get(course.id, []):
             chapters_by_id[chapter.id] = {
                 "id": chapter.id,
                 "chapter_number": chapter.chapter_number,
@@ -156,37 +182,44 @@ def get_course_roster(
     course_subchapter_ids = {subchapter.id for subchapter in sequence}
     total_subchapters = len(course_subchapter_ids)
 
-    roster = []
+    # One grouped query for the whole roster. This used to run a query per
+    # student and count the rows in Python, so opening the roster of a
+    # course a whole department can reach cost one round trip per person
+    # on it.
+    progress_by_student: dict[int, tuple[int, object]] = {}
 
-    for student in students:
-        progress_rows = (
-            db.query(Progress)
+    if students and course_subchapter_ids:
+        for row in (
+            db.query(
+                Progress.user_id,
+                func.count(Progress.id).label("completed"),
+                func.max(Progress.completed_at).label("last_activity"),
+            )
             .filter(
-                Progress.user_id == student.id,
+                Progress.user_id.in_([student.id for student in students]),
                 Progress.subchapter_id.in_(course_subchapter_ids),
                 Progress.is_completed == True
             )
+            .group_by(Progress.user_id)
             .all()
-        )
+        ):
+            progress_by_student[row.user_id] = (
+                row.completed,
+                row.last_activity,
+            )
 
-        completed_subchapters = len(progress_rows)
+    roster = []
+
+    for student in students:
+        completed_subchapters, last_activity = progress_by_student.get(
+            student.id, (0, None)
+        )
 
         percentage = (
             round((completed_subchapters / total_subchapters) * 100, 2)
             if total_subchapters > 0
             else 0
         )
-
-        last_activity = None
-
-        completed_ats = [
-            row.completed_at
-            for row in progress_rows
-            if row.completed_at is not None
-        ]
-
-        if completed_ats:
-            last_activity = max(completed_ats)
 
         roster.append(
             {

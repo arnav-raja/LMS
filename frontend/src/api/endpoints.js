@@ -84,6 +84,10 @@ export const adminApi = {
 
   // Append-only record of who changed which account, newest first.
   audit: () => api.get("/admin/audit"),
+
+  // Every chapter with its course, in one request — the quiz builder's
+  // picker. Previously assembled client-side with one request per course.
+  chapters: () => api.get("/admin/chapters"),
 };
 
 /* ------------------------------------------------------------ learning --- */

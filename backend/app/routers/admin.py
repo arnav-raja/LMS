@@ -15,6 +15,7 @@ from app.constants import Seniority
 from app.errors import ConflictError
 
 from app.schemas.admin import AuditEntryResponse
+from app.schemas.chapter import AdminChapterListItem
 from app.schemas.admin import DashboardResponse
 from app.schemas.admin import DepartmentOption
 from app.schemas.admin import RoleOption
@@ -28,6 +29,7 @@ from app.schemas.tracking import StudentSummary
 
 from app.services.admin_service import get_dashboard
 from app.services.audit_service import list_entries as list_audit_entries
+from app.services.chapter_service import list_all_chapters_admin
 from app.services.admin_service import list_all_users
 from app.services.admin_service import create_user
 from app.services.admin_service import update_user
@@ -137,6 +139,19 @@ def remove_user(
     removed = delete_user(db, current_user, user_id)
 
     return {"deleted": True, "removed": removed}
+
+
+@router.get("/chapters", response_model=list[AdminChapterListItem])
+def all_chapters(
+    current_user = Depends(require_admin),
+    db: Session = Depends(get_db)
+):
+    """Every chapter with its course, for the quiz builder's picker.
+
+    One request. The Quizzes page used to assemble this by asking the
+    course player's endpoint once per course.
+    """
+    return list_all_chapters_admin(db)
 
 
 @router.get("/audit", response_model=list[AuditEntryResponse])

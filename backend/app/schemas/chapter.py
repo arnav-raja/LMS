@@ -16,3 +16,13 @@ class ChapterResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class AdminChapterListItem(BaseModel):
+    """One row in the chapter picker on the admin Quizzes page."""
+    id: int
+    chapter_number: int
+    title: str
+    course_id: int
+    course_title: str
+    has_quiz: bool

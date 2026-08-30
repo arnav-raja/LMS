@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { courseApi, quizApi } from "../api/endpoints";
+import { adminApi, quizApi } from "../api/endpoints";
 import { useAsync } from "../api/useAsync";
 import {
   Button,
@@ -318,7 +318,7 @@ function QuizBuilder({ chapters, existingQuiz, defaultChapterId, onClose, onSave
       >
         {chapters.map((chapter) => (
           <option key={chapter.id} value={chapter.id}>
-            {chapter.courseTitle} — Chapter {chapter.chapter_number}: {chapter.title}
+            {chapter.course_title} — Chapter {chapter.chapter_number}: {chapter.title}
           </option>
         ))}
       </select>
@@ -422,7 +422,6 @@ function QuizBuilder({ chapters, existingQuiz, defaultChapterId, onClose, onSave
 export default function AdminQuizzes() {
   const { data: quizzes, loading, error, reload } = useAsync(() => quizApi.adminList(), []);
 
-  const [courses, setCourses] = useState([]);
   const [chapters, setChapters] = useState([]);
   const [builderOpen, setBuilderOpen] = useState(false);
   const [editingQuiz, setEditingQuiz] = useState(null);
@@ -433,24 +432,19 @@ export default function AdminQuizzes() {
 
   // The builder needs every chapter across every course, flattened, so an
   // admin can pick "which chapter is this quiz for" from one list.
+  //
+  // One request. This used to fetch the course list and then call the
+  // course player's endpoint once per course — forty courses meant forty
+  // round trips before the page could be used, each one computing lock
+  // maps and quiz summaries that were thrown away.
   useEffect(() => {
     let cancelled = false;
 
-    courseApi
-      .list()
-      .then(async (courseList) => {
+    adminApi
+      .chapters()
+      .then((chapterList) => {
         if (cancelled) return;
-        setCourses(courseList);
-
-        const chapterLists = await Promise.all(
-          courseList.map((course) =>
-            courseApi
-              .chapters(course.id)
-              .then((chs) => chs.map((c) => ({ ...c, courseTitle: course.title })))
-          )
-        );
-
-        if (!cancelled) setChapters(chapterLists.flat());
+        setChapters(chapterList);
       })
       .catch(() => {
         /* the quizzes list itself will surface a load error already */
@@ -463,7 +457,7 @@ export default function AdminQuizzes() {
 
   const openNewQuiz = () => {
     setEditingQuiz(null);
-    setDefaultChapterId(chapters.find((c) => !c.quiz)?.id ?? chapters[0]?.id ?? null);
+    setDefaultChapterId(chapters.find((c) => !c.has_quiz)?.id ?? chapters[0]?.id ?? null);
     setBuilderOpen(true);
   };
 

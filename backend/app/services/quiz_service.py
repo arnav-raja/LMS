@@ -53,26 +53,32 @@ def is_chapter_complete(
     return subchapter_ids.issubset(completed_subchapter_ids)
 
 
-def get_course_quiz_gate_map(
+def get_quiz_gate_maps(
     db: Session,
     user_id: int,
-    course_id: int
-) -> dict[int, dict]:
-    """For every chapter in the course: whether it has a quiz and whether
-    the user has passed it. A chapter with no quiz is treated as already
-    'passed', since it should never block the chapter after it.
+    course_ids: list[int]
+) -> dict[int, dict[int, dict]]:
+    """{course_id: {chapter_id: {has_quiz, passed}}} for any number of
+    courses, in three queries total.
 
-    Loads all of the course's quizzes and the user's passed attempts in
-    one query each — this runs on every course player page load, so a
-    per-chapter query here would multiply with the course's chapter count."""
-    chapter_ids = [
-        row.id
-        for row in (
-            db.query(Chapter.id)
-            .filter(Chapter.course_id == course_id)
-            .all()
-        )
-    ]
+    A chapter with no quiz counts as already 'passed', since it must
+    never block the chapter after it.
+
+    Takes a list rather than one course because the admin's per-student
+    progress page needs this for every course a student can reach at
+    once; calling the single-course version in a loop was costing several
+    queries per course.
+    """
+    if not course_ids:
+        return {}
+
+    chapters = (
+        db.query(Chapter.id, Chapter.course_id)
+        .filter(Chapter.course_id.in_(course_ids))
+        .all()
+    )
+
+    chapter_ids = [row.id for row in chapters]
 
     quiz_by_chapter: dict[int, int] = {
         row.chapter_id: row.id
@@ -81,7 +87,7 @@ def get_course_quiz_gate_map(
             .filter(Quiz.chapter_id.in_(chapter_ids))
             .all()
         )
-    }
+    } if chapter_ids else {}
 
     passed_quiz_ids: set[int] = {
         row.quiz_id
@@ -94,63 +100,120 @@ def get_course_quiz_gate_map(
             )
             .all()
         )
+    } if quiz_by_chapter else set()
+
+    gate_maps: dict[int, dict[int, dict]] = {
+        course_id: {} for course_id in course_ids
     }
 
-    gate_map: dict[int, dict] = {}
-
-    for chapter_id in chapter_ids:
-        quiz_id = quiz_by_chapter.get(chapter_id)
+    for row in chapters:
+        quiz_id = quiz_by_chapter.get(row.id)
 
         if quiz_id is None:
-            gate_map[chapter_id] = {"has_quiz": False, "passed": True}
+            gate_maps[row.course_id][row.id] = {
+                "has_quiz": False,
+                "passed": True
+            }
         else:
-            gate_map[chapter_id] = {
+            gate_maps[row.course_id][row.id] = {
                 "has_quiz": True,
                 "passed": quiz_id in passed_quiz_ids
             }
 
-    return gate_map
+    return gate_maps
 
 
-def get_quiz_summary_for_chapter(
+def get_course_quiz_gate_map(
     db: Session,
     user_id: int,
-    chapter_id: int,
+    course_id: int
+) -> dict[int, dict]:
+    """The gate map for a single course."""
+    return get_quiz_gate_maps(db, user_id, [course_id]).get(course_id, {})
+
+
+def get_quiz_summaries_for_course(
+    db: Session,
+    user_id: int,
+    course_id: int,
     completed_subchapter_ids: set[int] | None = None
-) -> dict | None:
-    quiz = (
-        db.query(Quiz)
-        .filter(Quiz.chapter_id == chapter_id)
-        .first()
-    )
+) -> dict[int, dict]:
+    """{chapter_id: quiz summary} for every chapter in the course that has
+    a quiz, in a fixed number of queries.
 
-    if quiz is None:
-        return None
+    The course player renders every chapter at once, so this used to run
+    two queries per chapter — a quiz lookup and an attempts lookup — on
+    every page load of every course.
+    """
+    if completed_subchapter_ids is None:
+        completed_subchapter_ids = get_completed_subchapter_ids(db, user_id)
 
-    attempts = (
-        db.query(QuizAttempt)
-        .filter(
-            QuizAttempt.quiz_id == quiz.id,
-            QuizAttempt.user_id == user_id
+    chapter_ids = [
+        row.id
+        for row in (
+            db.query(Chapter.id)
+            .filter(Chapter.course_id == course_id)
+            .all()
         )
+    ]
+
+    if not chapter_ids:
+        return {}
+
+    quizzes = (
+        db.query(Quiz)
+        .filter(Quiz.chapter_id.in_(chapter_ids))
         .all()
     )
 
-    best_score = max((attempt.score for attempt in attempts), default=None)
-    is_passed = any(attempt.passed for attempt in attempts)
-    is_unlocked = is_chapter_complete(
-        db, user_id, chapter_id, completed_subchapter_ids
-    )
+    if not quizzes:
+        return {}
 
-    return {
-        "id": quiz.id,
-        "title": quiz.title,
-        "passing_score": quiz.passing_score,
-        "is_unlocked": is_unlocked,
-        "is_passed": is_passed,
-        "best_score": best_score,
-        "attempts_count": len(attempts)
+    attempts_by_quiz: dict[int, list[QuizAttempt]] = {}
+    for attempt in (
+        db.query(QuizAttempt)
+        .filter(
+            QuizAttempt.quiz_id.in_([quiz.id for quiz in quizzes]),
+            QuizAttempt.user_id == user_id
+        )
+        .all()
+    ):
+        attempts_by_quiz.setdefault(attempt.quiz_id, []).append(attempt)
+
+    # Which chapters the user has finished, from one query rather than one
+    # per chapter.
+    subchapters_by_chapter: dict[int, set[int]] = {
+        chapter_id: set() for chapter_id in chapter_ids
     }
+    for row in (
+        db.query(Subchapter.chapter_id, Subchapter.id)
+        .filter(Subchapter.chapter_id.in_(chapter_ids))
+        .all()
+    ):
+        subchapters_by_chapter[row.chapter_id].add(row.id)
+
+    summaries: dict[int, dict] = {}
+
+    for quiz in quizzes:
+        attempts = attempts_by_quiz.get(quiz.id, [])
+
+        summaries[quiz.chapter_id] = {
+            "id": quiz.id,
+            "title": quiz.title,
+            "passing_score": quiz.passing_score,
+            # A chapter with no subchapters counts as complete — there is
+            # nothing to gate on.
+            "is_unlocked": subchapters_by_chapter[quiz.chapter_id].issubset(
+                completed_subchapter_ids
+            ),
+            "is_passed": any(attempt.passed for attempt in attempts),
+            "best_score": max(
+                (attempt.score for attempt in attempts), default=None
+            ),
+            "attempts_count": len(attempts),
+        }
+
+    return summaries
 
 
 # --------------------------------------------------------------- admin ----
