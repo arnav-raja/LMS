@@ -95,4 +95,4 @@ def test_me_with_a_malformed_token(client):
 
 def test_public_routes_need_no_token(client):
     assert client.get("/").status_code == 200
-    assert client.get("/health").json() == {"status": "running"}
+    assert client.get("/health").json()["status"] == "running"

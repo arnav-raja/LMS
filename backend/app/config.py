@@ -53,6 +53,10 @@ ACCESS_TOKEN_EXPIRE_MINUTES = int(
     )
 )
 
+# How much the application logs. INFO records one line per request;
+# WARNING quietens that down to problems only.
+LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").strip().upper() or "INFO"
+
 # Comma-separated list of frontend origins allowed to call this API, e.g.
 # "http://localhost:5173,https://app.arnav.com". Falls back to the two
 # local dev servers if not set, so nothing breaks for local development.

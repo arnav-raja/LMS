@@ -168,6 +168,53 @@ list is about 140 bytes per account, so roughly 110 KB at 800 accounts.
 Somewhere past a few thousand, paginate `/admin/users` and
 `/admin/students`; nothing else on the API grows with headcount.
 
+## Logs and health
+
+Logs are one JSON object per line, so a hosted log viewer can be queried
+rather than scrolled — "every request slower than a second" needs
+`duration_ms` to be a field, not part of a sentence.
+
+Every request is given an id, which appears on every line logged while
+handling it, comes back in the `X-Request-ID` header, and is included in
+the body of a 500:
+
+```json
+{"time":"2026-08-30T12:29:19.361Z","level":"ERROR","logger":"app.request",
+ "request_id":"6a69030cbcdb","method":"POST","path":"/auth/login",
+ "status":500,"duration_ms":44.4,"exception":"Traceback..."}
+```
+
+That id is the point. When somebody reports "it broke", the id they can
+read off the screen finds every line the failure produced. An inbound
+`X-Request-ID` is honoured, so an id assigned by a load balancer stays the
+same across both.
+
+A crash returns the id and nothing else — no exception message, no
+traceback. Those go to the logs.
+
+`LOG_LEVEL` defaults to `INFO`, which records one line per request. Set it
+to `WARNING` for problems only.
+
+**`GET /health` checks the database** and answers 503 when it cannot be
+reached. It previously returned "running" unconditionally, which meant an
+uptime monitor stayed green through exactly the outage it exists to catch,
+and a platform health check would never restart a deployment that could
+not talk to its database.
+
+**Shipping errors elsewhere.** There is no error-tracking service wired
+in, deliberately — the structured logs above are the part that has to be
+right, and where they are shipped is a deployment choice rather than a
+code one. If you want Sentry, it is `pip install sentry-sdk` and, in
+`app/main.py` before the app is created:
+
+```python
+import sentry_sdk
+sentry_sdk.init(dsn=os.getenv("SENTRY_DSN"), traces_sample_rate=0.1)
+```
+
+Its FastAPI integration picks up unhandled exceptions on its own; nothing
+in `observability.py` needs to change.
+
 ## Certificate verification
 
 `GET /verify/{certificate_number}` is the only route in the application
