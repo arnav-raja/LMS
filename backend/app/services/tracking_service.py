@@ -2,6 +2,10 @@ from sqlalchemy import and_
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
+from app.constants import Role
+
+from app.errors import NotFoundError
+
 from app.models.course import Course
 from app.models.course_access_rule import CourseAccessRule
 from app.models.progress import Progress
@@ -17,7 +21,7 @@ def list_students(
 ):
     return (
         db.query(User)
-        .filter(User.role == "student")
+        .filter(User.role == Role.STUDENT.value)
         .order_by(User.name)
         .all()
     )
@@ -30,7 +34,7 @@ def get_student_progress_detail(
     user = db.get(User, user_id)
 
     if user is None:
-        return None
+        raise NotFoundError("Student not found")
 
     courses = get_accessible_courses(db, user)
 
@@ -115,7 +119,7 @@ def get_course_roster(
     course = db.get(Course, course_id)
 
     if course is None:
-        return None
+        raise NotFoundError("Course not found")
 
     rules = (
         db.query(CourseAccessRule)
@@ -141,7 +145,7 @@ def get_course_roster(
         students = (
             db.query(User)
             .filter(
-                User.role == "student",
+                User.role == Role.STUDENT.value,
                 or_(*conditions)
             )
             .order_by(User.name)

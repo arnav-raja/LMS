@@ -17,6 +17,27 @@ jobs:
       run:
         working-directory: backend
 
+    # The suite runs against real PostgreSQL, not SQLite, so that foreign
+    # keys, CHECK constraints and timestamptz behave here exactly as they
+    # do in production.
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: lms_test
+          POSTGRES_PASSWORD: lms_test
+          POSTGRES_DB: lms_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U lms_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      TEST_DATABASE_URL: postgresql://lms_test:lms_test@localhost:5432/lms_test
+
     steps:
       - uses: actions/checkout@v4
 

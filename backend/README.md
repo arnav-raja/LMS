@@ -61,12 +61,21 @@ Interactive API docs are available at `/docs` once the server is running.
 ## Tests
 
 ```bash
+docker compose --profile test up -d test-db      # PostgreSQL on port 55432
 pip install -r requirements.txt -r requirements-dev.txt
 pytest
 ```
 
-Tests run against an in-memory SQLite database and never touch the database
-configured in `.env`.
+Tests run against a real PostgreSQL database, never against the one in
+`.env`. `TEST_DATABASE_URL` selects it and defaults to the `test-db`
+service above; the database name must contain "test", because the fixtures
+drop every table.
+
+PostgreSQL rather than SQLite because SQLite does not enforce foreign keys
+unless switched on, and has no `timestamptz` — so cascades and timezone
+handling would pass here and fail in production, which is exactly the class
+of bug these tests exist to catch. It costs nothing: the schema is built
+once per run and each test runs in a transaction that is rolled back.
 
 The suite has two layers, and both matter:
 
@@ -83,6 +92,12 @@ Run one layer on its own with `pytest tests/api` or
 Every route should have at least a success case and its failure cases
 (401 without a token, 403 for the wrong role, 404 for a missing record).
 When adding a route, add its tests in `tests/api/` in the same change.
+
+`tests/test_migrations.py` is worth knowing about: it runs the whole
+migration chain against an empty database and diffs the result against the
+models. If you change a model without writing a migration, that test fails
+— nothing else in the suite would notice, because the other tests build
+their schema from the models directly.
 
 ## Deployment
 

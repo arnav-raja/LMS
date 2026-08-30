@@ -13,6 +13,7 @@ and a brand new admin account is created.
 import getpass
 import sys
 
+from app.constants import Role
 from app.database import SessionLocal
 from app.models.user import User
 from app.utils.security import hash_password
@@ -31,7 +32,7 @@ def main():
         existing = db.query(User).filter(User.email == email).first()
 
         if existing:
-            if existing.role == "admin":
+            if existing.role == Role.ADMIN.value:
                 print(f"'{email}' is already an admin. Nothing to do.")
                 return
 
@@ -44,7 +45,7 @@ def main():
                 print("Cancelled.")
                 return
 
-            existing.role = "admin"
+            existing.role = Role.ADMIN.value
             db.commit()
             print(f"'{email}' is now an admin.")
             return
@@ -78,7 +79,7 @@ def main():
             username=username,
             email=email,
             password_hash=hash_password(password),
-            role="admin",
+            role=Role.ADMIN.value,
         )
 
         db.add(user)

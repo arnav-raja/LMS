@@ -1,12 +1,13 @@
 from fastapi import APIRouter
 from fastapi import Depends
-from fastapi import HTTPException
 
 from sqlalchemy.orm import Session
 
 from app.database import get_db
 
 from app.dependencies.admin import require_admin
+
+from app.errors import NotFoundError
 
 from app.models.user import User
 
@@ -27,10 +28,7 @@ router = APIRouter(
 
 def _ensure_course_exists(db: Session, course_id: int):
     if get_course(db, course_id) is None:
-        raise HTTPException(
-            status_code=404,
-            detail="Course not found"
-        )
+        raise NotFoundError("Course not found")
 
 
 @router.get("", response_model=list[CourseAccessRuleResponse])
@@ -70,18 +68,12 @@ def revoke(
 ):
     _ensure_course_exists(db, course_id)
 
-    revoked = revoke_access(
+    revoke_access(
         db=db,
         course_id=course_id,
         department=request.department.value,
         seniority=request.seniority.value
     )
-
-    if not revoked:
-        raise HTTPException(
-            status_code=404,
-            detail="Access rule not found"
-        )
 
     return {
         "message": "Access revoked"

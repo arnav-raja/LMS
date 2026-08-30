@@ -14,13 +14,6 @@ import pytest
 
 from fastapi.testclient import TestClient
 
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
-from sqlalchemy.pool import StaticPool
-
-import app.models  # noqa: F401 — registers every model on Base.metadata
-
-from app.database import Base
 from app.database import get_db
 from app.main import app as fastapi_app
 
@@ -45,29 +38,10 @@ _PASSWORD_HASH = hash_password(PASSWORD)
 
 
 @pytest.fixture
-def db():
-    """A session against a fresh in-memory database, one per test.
-
-    StaticPool keeps every connection pointed at the same in-memory
-    database — without it, SQLite would hand out a new empty one each time.
-    """
-    engine = create_engine(
-        "sqlite://",
-        connect_args={"check_same_thread": False},
-        poolclass=StaticPool,
-    )
-    Base.metadata.create_all(bind=engine)
-    session = sessionmaker(
-        bind=engine,
-        autocommit=False,
-        autoflush=False,
-    )()
-
-    try:
-        yield session
-    finally:
-        session.close()
-        engine.dispose()
+def db(db_session):
+    """The transactional session from tests/conftest.py, under the shorter
+    name these route tests use."""
+    return db_session
 
 
 @pytest.fixture

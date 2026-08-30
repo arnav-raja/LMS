@@ -1,9 +1,10 @@
-from datetime import datetime
-
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 from sqlalchemy.orm import joinedload
 from sqlalchemy.orm import selectinload
+
+from app.errors import NotFoundError
+from app.errors import PermissionDeniedError
 
 from app.models.chapter import Chapter
 from app.models.quiz import Quiz
@@ -17,6 +18,8 @@ from app.models.user import User
 from app.services.access_service import get_accessible_courses
 from app.services.access_service import user_has_access
 from app.services.progress_service import get_completed_subchapter_ids
+
+from app.utils.time import utc_now
 
 
 def is_chapter_complete(
@@ -163,7 +166,7 @@ def create_or_replace_quiz(
     chapter = db.get(Chapter, chapter_id)
 
     if chapter is None:
-        raise ValueError("Chapter not found")
+        raise NotFoundError("Chapter not found")
 
     existing = (
         db.query(Quiz)
@@ -215,23 +218,26 @@ def create_or_replace_quiz(
 def get_quiz_admin_view(
     db: Session,
     quiz_id: int
-) -> Quiz | None:
-    return db.get(Quiz, quiz_id)
+) -> Quiz:
+    quiz = db.get(Quiz, quiz_id)
+
+    if quiz is None:
+        raise NotFoundError("Quiz not found")
+
+    return quiz
 
 
 def delete_quiz(
     db: Session,
     quiz_id: int
-) -> bool:
+) -> None:
     quiz = db.get(Quiz, quiz_id)
 
     if quiz is None:
-        return False
+        raise NotFoundError("Quiz not found")
 
     db.delete(quiz)
     db.commit()
-
-    return True
 
 
 def list_all_quizzes_admin(db: Session) -> list[dict]:
@@ -283,11 +289,11 @@ def list_all_quizzes_admin(db: Session) -> list[dict]:
 def get_quiz_results_admin(
     db: Session,
     quiz_id: int
-) -> dict | None:
+) -> dict:
     quiz = db.get(Quiz, quiz_id)
 
     if quiz is None:
-        return None
+        raise NotFoundError("Quiz not found")
 
     attempts = (
         db.query(QuizAttempt)
@@ -337,25 +343,33 @@ def get_quiz_take_view(
     db: Session,
     user: User,
     quiz_id: int
-):
-    """Returns (quiz, None) on success, or (None, reason) where reason is
-    'not_found' or 'locked'."""
+) -> Quiz:
+    """The quiz as a student is allowed to see it, or an error explaining
+    why they are not.
+
+    A student who cannot reach the course gets the same "finish the
+    chapter first" answer as one who simply has not finished it, so the
+    response never reveals that a course they cannot see exists.
+    """
     quiz = db.get(Quiz, quiz_id)
 
     if quiz is None:
-        return None, "not_found"
+        raise NotFoundError("Quiz not found")
 
     chapter = quiz.chapter
-    course_id = chapter.course_id
 
     if not user.is_admin:
-        if not user_has_access(db, user, course_id):
-            return None, "locked"
+        if not user_has_access(db, user, chapter.course_id):
+            raise PermissionDeniedError(
+                "Complete every lesson in this chapter first"
+            )
 
         if not is_chapter_complete(db, user.id, chapter.id):
-            return None, "locked"
+            raise PermissionDeniedError(
+                "Complete every lesson in this chapter first"
+            )
 
-    return quiz, None
+    return quiz
 
 
 def submit_quiz(
@@ -389,7 +403,7 @@ def submit_quiz(
         quiz_id=quiz_id,
         score=0,
         passed=False,
-        submitted_at=datetime.utcnow()
+        submitted_at=utc_now()
     )
 
     db.add(attempt)

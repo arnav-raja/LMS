@@ -1,5 +1,7 @@
 from sqlalchemy.orm import Session
 
+from app.errors import NotFoundError
+
 from app.models.chapter import Chapter
 from app.models.subchapter import Subchapter
 
@@ -56,7 +58,9 @@ def continue_learning(
                     "subchapter_title": subchapter.title
                 }
 
-    return None
+    # Nothing left unfinished. The frontend reads this 404 as "course
+    # complete" and shows the finished state, not an error.
+    raise NotFoundError("Course completed")
 
 
 def get_course_progress(

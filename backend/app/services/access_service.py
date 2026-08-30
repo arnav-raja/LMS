@@ -1,5 +1,9 @@
 from sqlalchemy.orm import Session
 
+from app.constants import CourseStatus
+
+from app.errors import NotFoundError
+
 from app.models.course import Course
 from app.models.course_access_rule import CourseAccessRule
 from app.models.user import User
@@ -42,7 +46,7 @@ def revoke_access(
     course_id: int,
     department: str,
     seniority: str
-) -> bool:
+) -> None:
     rule = (
         db.query(CourseAccessRule)
         .filter(
@@ -54,12 +58,10 @@ def revoke_access(
     )
 
     if rule is None:
-        return False
+        raise NotFoundError("Access rule not found")
 
     db.delete(rule)
     db.commit()
-
-    return True
 
 
 def get_course_access_rules(
@@ -111,7 +113,7 @@ def get_accessible_courses(
         db.query(Course)
         .join(CourseAccessRule, CourseAccessRule.course_id == Course.id)
         .filter(
-            Course.status == "published",
+            Course.status == CourseStatus.PUBLISHED.value,
             CourseAccessRule.department == user.department,
             CourseAccessRule.seniority == user.seniority
         )

@@ -16,6 +16,27 @@ services:
       timeout: 5s
       retries: 10
 
+  # The database the test suite runs against. Kept separate from `db` so a
+  # test run can never touch development data, and on a different port so
+  # both can be up at once. Behind a profile, so a plain `docker compose up`
+  # does not start it:
+  #     docker compose --profile test up -d test-db
+  test-db:
+    image: postgres:16-alpine
+    profiles: ["test"]
+    environment:
+      POSTGRES_USER: lms_test
+      POSTGRES_PASSWORD: lms_test
+      POSTGRES_DB: lms_test
+    ports:
+      - "55432:5432"
+    # No volume — a test database is meant to be disposable.
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U lms_test"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
   api:
     build: .
     restart: unless-stopped

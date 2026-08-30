@@ -1,7 +1,10 @@
 from fastapi import FastAPI
+from fastapi import Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 
 from app.config import ALLOWED_ORIGINS
+from app.errors import DomainError
 
 from app.routers.auth import router as auth_router
 from app.routers.course import router as course_router
@@ -29,6 +32,19 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"]
 )
+
+
+@app.exception_handler(DomainError)
+def handle_domain_error(request: Request, error: DomainError) -> JSONResponse:
+    """Turns any deliberate application error into its HTTP response.
+
+    `{"detail": ...}` matches the shape FastAPI's own HTTPException
+    produces, so every client keeps reading errors the same way.
+    """
+    return JSONResponse(
+        status_code=error.status_code,
+        content={"detail": error.detail},
+    )
 
 
 app.include_router(auth_router)

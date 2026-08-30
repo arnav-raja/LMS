@@ -1,5 +1,7 @@
 from sqlalchemy.orm import Session
 
+from app.errors import NotFoundError
+
 from app.models.course import Course
 from app.models.chapter import Chapter
 from app.models.subchapter import Subchapter
@@ -43,7 +45,7 @@ def create_course(
     course = Course(
         title=request.title,
         description=request.description,
-        status=request.status,
+        status=request.status.value,
         num_chapters=len(request.chapters)
     )
 
@@ -176,13 +178,11 @@ def update_course(
     )
 
     if course is None:
-        raise ValueError(
-            "Course not found"
-        )
+        raise NotFoundError("Course not found")
 
     course.title = request.title
     course.description = request.description
-    course.status = request.status
+    course.status = request.status.value
     course.num_chapters = len(request.chapters)
 
     existing_chapters_by_number = {
@@ -244,9 +244,7 @@ def delete_course(
     )
 
     if course is None:
-        raise ValueError(
-            "Course not found"
-        )
+        raise NotFoundError("Course not found")
 
     chapters = (
         db.query(Chapter)

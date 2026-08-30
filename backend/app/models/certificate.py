@@ -1,5 +1,4 @@
 import secrets
-from datetime import datetime
 
 from sqlalchemy import Column
 from sqlalchemy import DateTime
@@ -11,6 +10,8 @@ from sqlalchemy import UniqueConstraint
 from sqlalchemy.orm import relationship
 
 from app.database import Base
+
+from app.utils.time import utc_now
 
 
 def _generate_certificate_number() -> str:
@@ -58,9 +59,9 @@ class Certificate(Base):
     )
 
     issued_at = Column(
-        DateTime,
+        DateTime(timezone=True),
         nullable=False,
-        default=datetime.utcnow
+        default=utc_now
     )
 
     user = relationship("User")

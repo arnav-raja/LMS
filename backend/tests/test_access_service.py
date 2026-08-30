@@ -1,3 +1,6 @@
+import pytest
+
+from app.errors import NotFoundError
 from app.models.course import Course
 from app.models.user import User
 from app.services import access_service
@@ -61,16 +64,16 @@ def test_revoke_access_removes_permission(db_session):
     student = make_user(db_session, department="EC", seniority="Mid")
     access_service.grant_access(db_session, course.id, "EC", "Mid")
 
-    revoked = access_service.revoke_access(db_session, course.id, "EC", "Mid")
+    access_service.revoke_access(db_session, course.id, "EC", "Mid")
 
-    assert revoked is True
     assert access_service.user_has_access(db_session, student, course.id) is False
 
 
-def test_revoke_access_missing_rule_returns_false(db_session):
+def test_revoke_access_missing_rule_raises_not_found(db_session):
     course = make_course(db_session)
 
-    assert access_service.revoke_access(db_session, course.id, "EC", "Mid") is False
+    with pytest.raises(NotFoundError):
+        access_service.revoke_access(db_session, course.id, "EC", "Mid")
 
 
 def test_accessible_courses_excludes_unpublished_for_students(db_session):

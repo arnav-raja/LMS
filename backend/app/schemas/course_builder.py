@@ -1,5 +1,7 @@
 from pydantic import BaseModel
 
+from app.constants import CourseStatus
+
 
 class CreateSubchapterRequest(BaseModel):
     title: str
@@ -15,5 +17,5 @@ class CreateChapterRequest(BaseModel):
 class CreateCourseRequest(BaseModel):
     title: str
     description: str
-    status: str = "draft"
+    status: CourseStatus = CourseStatus.DRAFT
     chapters: list[CreateChapterRequest]

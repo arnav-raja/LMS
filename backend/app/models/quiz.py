@@ -1,4 +1,3 @@
-from datetime import datetime
 
 from sqlalchemy import Boolean
 from sqlalchemy import Column
@@ -12,6 +11,8 @@ from sqlalchemy import Text
 from sqlalchemy.orm import relationship
 
 from app.database import Base
+
+from app.utils.time import utc_now
 
 
 class Quiz(Base):
@@ -169,9 +170,9 @@ class QuizAttempt(Base):
     )
 
     submitted_at = Column(
-        DateTime,
+        DateTime(timezone=True),
         nullable=False,
-        default=datetime.utcnow
+        default=utc_now
     )
 
     user = relationship("User")

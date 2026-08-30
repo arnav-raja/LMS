@@ -1,5 +1,11 @@
 from sqlalchemy.orm import Session
 
+from app.constants import CourseStatus
+from app.constants import Role
+
+from app.errors import ConflictError
+from app.errors import NotFoundError
+
 from app.models.user import User
 from app.models.course import Course
 from app.models.progress import Progress
@@ -12,19 +18,19 @@ def get_dashboard(
 ):
     total_students = (
         db.query(User)
-        .filter(User.role == "student")
+        .filter(User.role == Role.STUDENT.value)
         .count()
     )
 
     published_courses = (
         db.query(Course)
-        .filter(Course.status == "published")
+        .filter(Course.status == CourseStatus.PUBLISHED.value)
         .count()
     )
 
     draft_courses = (
         db.query(Course)
-        .filter(Course.status == "draft")
+        .filter(Course.status == CourseStatus.DRAFT.value)
         .count()
     )
 
@@ -56,10 +62,10 @@ def create_user(
     seniority: str | None
 ):
     if email and db.query(User).filter(User.email == email).first():
-        raise ValueError("Email already registered")
+        raise ConflictError("Email already registered")
 
     if db.query(User).filter(User.username == username).first():
-        raise ValueError("Username already taken")
+        raise ConflictError("Username already taken")
 
     user = User(
         name=name,
@@ -93,16 +99,16 @@ def update_user(
     user = db.get(User, user_id)
 
     if user is None:
-        return None
+        raise NotFoundError("User not found")
 
     if username is not None and username != user.username:
         if db.query(User).filter(User.username == username).first():
-            raise ValueError("Username already taken")
+            raise ConflictError("Username already taken")
         user.username = username
 
     if "email" in provided_fields and email != user.email:
         if email and db.query(User).filter(User.email == email).first():
-            raise ValueError("Email already registered")
+            raise ConflictError("Email already registered")
         user.email = email
 
     if name is not None:
@@ -129,11 +135,11 @@ def update_user(
 def delete_user(
     db: Session,
     user_id: int
-):
+) -> None:
     user = db.get(User, user_id)
 
     if user is None:
-        return False
+        raise NotFoundError("User not found")
 
     # Remove their progress history first — the database won't let us
     # delete the account itself while rows still point at it.
@@ -141,5 +147,3 @@ def delete_user(
 
     db.delete(user)
     db.commit()
-
-    return True
