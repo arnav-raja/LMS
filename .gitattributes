@@ -1,0 +1,21 @@
+# How Git should handle line endings.
+#
+# Without this file Git guesses, and on Windows it kept rewriting files
+# on the way in and out. That produced a "LF will be replaced by CRLF"
+# warning on every commit, and can make Git report that a whole file
+# changed when nothing in it actually did.
+#
+# `text=auto eol=lf` means: store everything with LF line endings, and
+# check it out with LF too. Every editor in use here handles LF fine.
+* text=auto eol=lf
+
+# Images are not text. Saying so stops Git ever trying to "fix" them,
+# which would corrupt them.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.woff binary
+*.woff2 binary
+*.pdf binary
