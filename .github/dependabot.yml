@@ -1,11 +1,25 @@
-# Tells GitHub to watch our dependencies and open a pull request when one
-# has a security fix or a new version.
+# Dependabot, deliberately kept quiet.
 #
-# Worth having here because this app handles sign-in, passwords and a
-# database. A hole in something we depend on is a hole in the app, and
-# without this nobody finds out.
+# `open-pull-requests-limit: 0` switches off *version* updates — the
+# routine "a newer release exists" pull requests. It does not switch off
+# security updates, which are a separate GitHub feature and keep working.
 #
-# Weekly, and capped, so it does not become noise nobody reads.
+# So: you still get told when something you depend on has a known
+# vulnerability, and you no longer get a pull request every time any
+# package publishes any release.
+#
+# Why it is set this way: turning version updates on for the first time
+# made Dependabot open thirteen pull requests at once, one per
+# out-of-date package. Most were major-version jumps that would have
+# broken the app if merged — bcrypt 5 against passlib would have stopped
+# sign-in working, and React Router 7 would have broken every route. None
+# of them are things to merge without testing one at a time.
+#
+# To upgrade something on purpose, do it by hand, run the tests, and
+# commit it like any other change.
+#
+# To turn routine updates back on, raise the limit below. Expect a burst
+# of pull requests the first time, one per package that is behind.
 version: 2
 
 updates:
@@ -13,22 +27,16 @@ updates:
     directory: "/backend"
     schedule:
       interval: "weekly"
-    open-pull-requests-limit: 5
-    commit-message:
-      prefix: "backend deps"
+    open-pull-requests-limit: 0
 
   - package-ecosystem: "npm"
     directory: "/frontend"
     schedule:
       interval: "weekly"
-    open-pull-requests-limit: 5
-    commit-message:
-      prefix: "frontend deps"
+    open-pull-requests-limit: 0
 
-  # The CI workflow pins action versions too, and those go stale as well.
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
       interval: "monthly"
-    commit-message:
-      prefix: "ci"
+    open-pull-requests-limit: 0
