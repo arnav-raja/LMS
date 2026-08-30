@@ -11,6 +11,94 @@
 }
 
 /* -------------------------------------------------------- responsive --- */
+/*
+ * Width queries first, then height, then the narrow top-bar layout last so
+ * it wins. Keeping the three apart matters: a browser windowed small on a
+ * laptop matches a width rule *and* a height rule at once, and interleaving
+ * them makes it very hard to work out which declaration is winning.
+ */
+
+/* A browser windowed to around 1000px wide is still the desktop layout,
+ * but a 232px menu plus 112px of page padding leaves only ~650px for the
+ * content itself. Narrow both slightly. */
+@media (max-width: 1100px) {
+  .sidebar {
+    width: 200px;
+    padding: 24px 16px;
+  }
+
+  .app-shell-collapsed .sidebar {
+    width: 68px;
+  }
+
+  .sidebar-wordmark {
+    width: 104px;
+  }
+
+  .main {
+    padding: 32px 32px 60px;
+  }
+}
+
+/* ------------------------------------------------- short windows --- */
+/*
+ * "Laptop, browser not maximised". A 1366x768 screen with a windowed
+ * browser gives roughly 600px of viewport height, and an admin's menu
+ * needs about 570px of it — brand ~120, five links ~200, footer ~100,
+ * padding ~56. It fits with 30px to spare, and not at all once the window
+ * is any smaller than that.
+ *
+ * The scrolling nav means this can no longer break. This just reclaims
+ * about 90px so it does not need to scroll in the first place.
+ */
+@media (max-height: 740px) {
+  .sidebar {
+    padding: 16px 20px;
+  }
+
+  .sidebar-brand {
+    padding-bottom: 12px;
+    margin-bottom: 12px;
+  }
+
+  .sidebar-crest {
+    width: 30px;
+    margin-bottom: 6px;
+  }
+
+  .sidebar-wordmark {
+    width: 100px;
+  }
+
+  .sidebar-link {
+    padding: 8px 14px;
+  }
+
+  .sidebar-footer {
+    padding-top: 12px;
+  }
+
+  .sidebar-user-meta {
+    margin: 2px 0 8px;
+  }
+
+  .sidebar-collapse-toggle {
+    top: 14px;
+  }
+}
+
+/* Shorter still — a very small window. Drop the wordmark and keep only
+ * the crest, which buys back the last of the vertical space. */
+@media (max-height: 560px) {
+  .sidebar-wordmark {
+    display: none;
+  }
+
+  .sidebar-brand {
+    padding-bottom: 10px;
+    margin-bottom: 10px;
+  }
+}
 
 @media (max-width: 1000px) {
   .player-body {
@@ -32,6 +120,10 @@
     flex-direction: column;
   }
 
+  /* Back to a horizontal bar. The desktop rules above make the menu a
+     full-height sticky column, all of which has to be undone here — a
+     100vh-tall top bar would fill the screen. It stays sticky, but now
+     across the top, so navigation is still reachable while scrolling. */
   .sidebar {
     width: 100%;
     flex-direction: row;
@@ -39,6 +131,18 @@
     padding: 12px 18px;
     gap: 16px;
     flex-wrap: wrap;
+    position: sticky;
+    top: 0;
+    height: auto;
+    align-self: auto;
+    z-index: 10;
+  }
+
+  /* The nav scrolls itself only in the tall column layout. In a row it
+     would clip the links horizontally instead. (`min-height: 0` is left
+     alone — it only affects shrinking in a column.) */
+  .sidebar-nav {
+    overflow-y: visible;
   }
 
   .sidebar-brand {

@@ -62,6 +62,19 @@
   min-height: 100vh;
 }
 
+/* The menu belongs to the window, not to the document.
+ *
+ * It used to be a plain flex item, which meant `align-items: stretch` gave
+ * it the height of the whole page. On a long roster or lesson that put the
+ * footer — the user's name and Sign out — at the bottom of the *document*,
+ * hundreds or thousands of pixels below the fold, with every nav link
+ * scrolled away above it.
+ *
+ * `align-self: flex-start` is the line that fixes that: it stops the
+ * stretch, so `height: 100vh` means the window rather than the page.
+ * Sticky rather than fixed so the sidebar stays in the flex row — `.main`
+ * needs no offset to compensate, and the collapse animation keeps working
+ * without a second width to keep in sync. */
 .sidebar {
   width: 232px;
   flex-shrink: 0;
@@ -69,7 +82,10 @@
   display: flex;
   flex-direction: column;
   padding: 28px 20px;
-  position: relative;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  align-self: flex-start;
   transition: width 0.2s ease;
 }
 
@@ -132,12 +148,44 @@
   width: 118px;
 }
 
+/* When the window is too short for every link, the links scroll — the
+ * brand stays pinned at the top and Sign out at the bottom, both always
+ * reachable.
+ *
+ * Two things here are easy to get wrong:
+ *
+ * `min-height: 0` is required. A flex child will not shrink below its
+ * content size without it, so `overflow-y` alone does nothing and the
+ * footer still gets pushed out of sight.
+ *
+ * The overflow goes here rather than on `.sidebar`, because the collapse
+ * toggle deliberately hangs outside the sidebar's right edge
+ * (`right: -13px`). Clipping on the parent would cut it in half. */
 .sidebar-nav {
   display: flex;
   flex-direction: column;
   gap: 3px;
   flex: 1;
   width: 100%;
+  overflow-y: auto;
+  min-height: 0;
+  scrollbar-width: thin;
+  scrollbar-color: var(--charcoal) transparent;
+}
+
+/* WebKit equivalent of scrollbar-width/-color — a default scrollbar is
+ * jarring against the dark menu. */
+.sidebar-nav::-webkit-scrollbar {
+  width: 6px;
+}
+
+.sidebar-nav::-webkit-scrollbar-thumb {
+  background: var(--charcoal);
+  border-radius: 3px;
+}
+
+.sidebar-nav::-webkit-scrollbar-track {
+  background: transparent;
 }
 
 .sidebar-link {
@@ -233,6 +281,11 @@
   padding: 48px 56px 80px;
   max-width: 1180px;
   min-width: 0;
+  /* Centred in the space beside the menu. Without this the content is
+   * capped at 1180px and left-aligned, so a full-screen 1920px display
+   * leaves ~500px of empty space down the right-hand side, which reads as
+   * a rendering fault rather than a decision. */
+  margin-inline: auto;
 }
 
 /* ------------------------------------------------------ page furniture --- */
