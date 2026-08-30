@@ -1,5 +1,7 @@
 # Arnav LMS
 
+[![CI](https://github.com/arnav-raja/LMS/actions/workflows/ci.yml/badge.svg)](https://github.com/arnav-raja/LMS/actions/workflows/ci.yml)
+
 A Learning Management System for internal corporate training: course
 authoring, chapter/quiz content, progress tracking, automatic certificate
 issuance, and department/seniority-based access control.
