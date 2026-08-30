@@ -2,6 +2,7 @@ from fastapi import APIRouter
 from fastapi import Depends
 from fastapi import HTTPException
 
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -90,8 +91,7 @@ def add_user(
             password=request.password,
             role=request.role,
             department=request.department.value if request.department else None,
-            seniority=request.seniority.value if request.seniority else None,
-            provided_fields=request.model_fields_set
+            seniority=request.seniority.value if request.seniority else None
         )
     except ValueError as error:
         raise HTTPException(status_code=400, detail=str(error))
@@ -114,7 +114,11 @@ def edit_user(
             password=request.password,
             role=request.role,
             department=request.department.value if request.department else None,
-            seniority=request.seniority.value if request.seniority else None
+            seniority=request.seniority.value if request.seniority else None,
+            # Tells the service which fields the caller actually sent, so a
+            # PATCH that omits `department` leaves it alone while one that
+            # sends `null` genuinely clears it.
+            provided_fields=request.model_fields_set
         )
     except ValueError as error:
         raise HTTPException(status_code=400, detail=str(error))
@@ -139,7 +143,11 @@ def remove_user(
 
     try:
         deleted = delete_user(db, user_id)
-    except Exception:
+    except IntegrityError:
+        # Quiz attempts and certificates still reference this account and
+        # have no cascade yet, so the database refuses the delete. Only that
+        # case is caught — a genuine bug must surface as a 500, not be
+        # reported to the admin as their mistake.
         db.rollback()
         raise HTTPException(
             status_code=400,

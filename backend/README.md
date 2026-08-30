@@ -68,6 +68,22 @@ pytest
 Tests run against an in-memory SQLite database and never touch the database
 configured in `.env`.
 
+The suite has two layers, and both matter:
+
+- **`tests/`** — unit tests that call services directly. Fast, and good at
+  covering business rules.
+- **`tests/api/`** — route tests that drive the real app over HTTP with
+  `TestClient`. These are the only tests that see the router layer, so they
+  are what catch a route calling its service wrongly, a missing permission
+  check, or a wrong status code.
+
+Run one layer on its own with `pytest tests/api` or
+`pytest tests --ignore=tests/api`.
+
+Every route should have at least a success case and its failure cases
+(401 without a token, 403 for the wrong role, 404 for a missing record).
+When adding a route, add its tests in `tests/api/` in the same change.
+
 ## Deployment
 
 See [DEPLOYMENT.md](DEPLOYMENT.md) for the full free-tier deployment guide
